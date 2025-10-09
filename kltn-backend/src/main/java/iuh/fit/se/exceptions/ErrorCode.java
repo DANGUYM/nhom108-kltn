@@ -55,7 +55,45 @@ public enum ErrorCode {
   REFRESH_TOKEN_INVALID(1038, "Refresh already expired !", HttpStatus.BAD_REQUEST),
   PASSWORD_MUST_MATCH(1039, "Password must match !", HttpStatus.BAD_REQUEST),
   INVALID_INPUT(1040, "Error Enum doesn't match !", HttpStatus.BAD_REQUEST),
-  TOKEN_NOT_EXPIRED(1041, "Reset token doesn't expire yet, try again !", HttpStatus.BAD_REQUEST);
+  TOKEN_NOT_EXPIRED(1041, "Reset token doesn't expire yet, try again !", HttpStatus.BAD_REQUEST),
+
+  // Color related errors
+  COLOR_NOT_FOUND(1042, "Color not found!", HttpStatus.NOT_FOUND),
+  COLOR_ALREADY_EXISTS(1043, "Color already exists!", HttpStatus.BAD_REQUEST),
+
+  // Size related errors
+  SIZE_NOT_FOUND(1044, "Size not found!", HttpStatus.NOT_FOUND),
+  SIZE_ALREADY_EXISTS(1045, "Size already exists!", HttpStatus.BAD_REQUEST),
+
+  // Brand related errors
+  BRAND_NOT_FOUND(1046, "Brand not found!", HttpStatus.NOT_FOUND),
+  BRAND_ALREADY_EXISTS(1047, "Brand already exists!", HttpStatus.BAD_REQUEST),
+
+  // Category related errors
+  CATEGORY_NOT_FOUND(1048, "Category not found!", HttpStatus.NOT_FOUND),
+  CATEGORY_ALREADY_EXISTS(1049, "Category already exists!", HttpStatus.BAD_REQUEST),
+  CATEGORY_HAS_SUBCATEGORIES(
+      1050, "Cannot delete category that has subcategories!", HttpStatus.BAD_REQUEST),
+  INVALID_PARENT_CATEGORY(1051, "Invalid parent category!", HttpStatus.BAD_REQUEST),
+
+  // Product related errors
+  PRODUCT_NOT_FOUND(1052, "Product not found!", HttpStatus.NOT_FOUND),
+  PRODUCT_ALREADY_EXISTS(1053, "Product already exists!", HttpStatus.BAD_REQUEST),
+  PRODUCT_OUT_OF_STOCK(1054, "Product is out of stock!", HttpStatus.BAD_REQUEST),
+
+  // Product Variant related errors
+  PRODUCT_VARIANT_NOT_FOUND(1055, "Product variant not found!", HttpStatus.NOT_FOUND),
+  PRODUCT_VARIANT_ALREADY_EXISTS(1056, "Product variant already exists!", HttpStatus.BAD_REQUEST),
+  PRODUCT_VARIANT_OUT_OF_STOCK(1057, "Product variant is out of stock!", HttpStatus.BAD_REQUEST),
+
+  // Cart related errors
+  CART_NOT_FOUND(1058, "Cart not found!", HttpStatus.NOT_FOUND),
+  CART_ITEM_NOT_FOUND(1059, "Cart item not found!", HttpStatus.NOT_FOUND),
+  INVALID_QUANTITY(1060, "Invalid quantity!", HttpStatus.BAD_REQUEST),
+
+  // Review related errors
+  REVIEW_NOT_FOUND(1061, "Review not found!", HttpStatus.NOT_FOUND),
+  REVIEW_ALREADY_EXISTS(1062, "You have already reviewed this product!", HttpStatus.BAD_REQUEST);
   ;
 
   int code;

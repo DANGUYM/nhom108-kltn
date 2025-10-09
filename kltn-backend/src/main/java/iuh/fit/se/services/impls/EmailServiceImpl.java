@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -128,21 +127,16 @@ public class EmailServiceImpl implements IEmailService {
     String key = "reset-token: " + user.getId();
 
     Long ttl = stringRedisTemplate.getExpire(key, TimeUnit.SECONDS);
-    if(ttl != null && ttl > 0){
+    if (ttl != null && ttl > 0) {
       long minutes = ttl / 60;
       long seconds = ttl % 60;
       throw new AppException(
-              ErrorCode.TOKEN_NOT_EXPIRED,
-              String.format("You only send mail after %d minutes %d seconds.", minutes, seconds)
-      );
+          ErrorCode.TOKEN_NOT_EXPIRED,
+          String.format("You only send mail after %d minutes %d seconds.", minutes, seconds));
     }
     String token = generateResetToken();
 
-
-
-    stringRedisTemplate
-        .opsForValue()
-        .set(key, token, Duration.ofMinutes(15));
+    stringRedisTemplate.opsForValue().set(key, token, Duration.ofMinutes(15));
 
     Map<String, Object> variables =
         Map.of(

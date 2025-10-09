@@ -205,7 +205,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     PasswordEncoder encoder = new BCryptPasswordEncoder(10);
     existUser.setPassword(encoder.encode(verifyResetTokenRequest.getPassword()));
     userRepository.save(existUser);
-    
+
     stringRedisTemplate.delete("reset-token: " + existUser.getId());
   }
 }
