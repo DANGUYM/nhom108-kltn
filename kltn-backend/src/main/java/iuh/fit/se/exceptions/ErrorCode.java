@@ -93,7 +93,18 @@ public enum ErrorCode {
 
   // Review related errors
   REVIEW_NOT_FOUND(1061, "Review not found!", HttpStatus.NOT_FOUND),
-  REVIEW_ALREADY_EXISTS(1062, "You have already reviewed this product!", HttpStatus.BAD_REQUEST);
+  REVIEW_ALREADY_EXISTS(1062, "You have already reviewed this product!", HttpStatus.BAD_REQUEST),
+
+  // Discount related errors
+  DISCOUNT_NOT_FOUND(1063, "Discount not found!", HttpStatus.NOT_FOUND),
+  DISCOUNT_ALREADY_EXISTS(1064, "Discount already exists!", HttpStatus.BAD_REQUEST),
+  DISCOUNT_INVALID_VALUE(1065, "Invalid discount value!", HttpStatus.BAD_REQUEST),
+  DISCOUNT_INVALID_DATE_RANGE(1066, "Invalid discount date range!", HttpStatus.BAD_REQUEST),
+  DISCOUNT_IN_USE(1067, "Discount is currently in use and cannot be deleted!", HttpStatus.BAD_REQUEST),
+  DISCOUNT_NOT_ACTIVE(1068, "Discount is not active!", HttpStatus.BAD_REQUEST),
+  DISCOUNT_EXPIRED(1069, "Discount has expired!", HttpStatus.BAD_REQUEST),
+  PRODUCT_DISCOUNT_ALREADY_EXISTS(1070, "Product already has this discount!", HttpStatus.BAD_REQUEST),
+  PRODUCT_DISCOUNT_NOT_FOUND(1071, "Product discount not found!", HttpStatus.NOT_FOUND);
   ;
 
   int code;
