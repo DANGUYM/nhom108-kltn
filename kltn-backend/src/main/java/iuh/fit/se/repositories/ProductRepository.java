@@ -38,4 +38,147 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
   @Query(
       "SELECT p FROM Product p JOIN ProductVariant pv ON p.id = pv.product.id WHERE pv.stockQuantity > 0")
   Page<Product> findAvailableProducts(Pageable pageable);
+
+  // Advanced filtering queries
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN p.category c "
+          + "LEFT JOIN c.category parent "
+          + "WHERE (:rootCategoryId IS NULL OR parent.id = :rootCategoryId OR (parent IS NULL AND c.id = :rootCategoryId))")
+  Page<Product> findByRootCategory(@Param("rootCategoryId") Long rootCategoryId, Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "WHERE (:categoryIds IS NULL OR p.category.id IN :categoryIds)")
+  Page<Product> findByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p " + "WHERE (:brandIds IS NULL OR p.brand.id IN :brandIds)")
+  Page<Product> findByBrandIds(@Param("brandIds") List<Long> brandIds, Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "WHERE (:sizeIds IS NULL OR pv.size.id IN :sizeIds)")
+  Page<Product> findBySizeIds(@Param("sizeIds") List<Long> sizeIds, Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "WHERE (:colorIds IS NULL OR pv.color.id IN :colorIds)")
+  Page<Product> findByColorIds(@Param("colorIds") List<Long> colorIds, Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN ProductDiscount pd ON p.id = pd.product.id "
+          + "JOIN Discount d ON pd.discount.id = d.id "
+          + "WHERE d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP")
+  Page<Product> findProductsWithActiveDiscount(Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN ProductDiscount pd ON p.id = pd.product.id "
+          + "JOIN Discount d ON pd.discount.id = d.id "
+          + "WHERE d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP "
+          + "AND d.value BETWEEN :minPercent AND :maxPercent")
+  Page<Product> findProductsByDiscountRange(
+      @Param("minPercent") Double minPercent,
+      @Param("maxPercent") Double maxPercent,
+      Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN Favorite f ON p.id = f.product.id "
+          + "WHERE f.user.id = :userId")
+  Page<Product> findFavoriteProductsByUserId(@Param("userId") Long userId, Pageable pageable);
+
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "WHERE (:material IS NULL OR pv.material LIKE %:material%)")
+  Page<Product> findByMaterial(@Param("material") String material, Pageable pageable);
+
+  // Statistics queries
+  @Query("SELECT COUNT(p) FROM Product p WHERE p.status = :status")
+  Long countByStatus(@Param("status") ProductStatus status);
+
+  @Query(
+      "SELECT COUNT(DISTINCT p) FROM Product p "
+          + "JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "WHERE pv.stockQuantity > 0")
+  Long countInStockProducts();
+
+  @Query("SELECT c.name, COUNT(p) FROM Product p " + "JOIN p.category c " + "GROUP BY c.id, c.name")
+  List<Object[]> countProductsByCategory();
+
+  @Query("SELECT b.name, COUNT(p) FROM Product p " + "JOIN p.brand b " + "GROUP BY b.id, b.name")
+  List<Object[]> countProductsByBrand();
+
+  @Query(
+      "SELECT s.name, COUNT(DISTINCT p) FROM Product p "
+          + "JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "JOIN pv.size s "
+          + "GROUP BY s.id, s.name")
+  List<Object[]> countProductsBySize();
+
+  @Query(
+      "SELECT c.name, COUNT(DISTINCT p) FROM Product p "
+          + "JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "JOIN pv.color c "
+          + "GROUP BY c.id, c.name")
+  List<Object[]> countProductsByColor();
+
+  @Query(
+      "SELECT MIN(p.basePrice), MAX(p.basePrice), AVG(p.basePrice) FROM Product p WHERE p.status = 'ACTIVE'")
+  Object[] getPriceStatistics();
+
+  @Query(
+      "SELECT SUM(pv.stockQuantity) FROM ProductVariant pv "
+          + "JOIN pv.product p WHERE p.status = 'ACTIVE'")
+  Long getTotalStock();
+
+  // Complex filtering query with multiple criteria - Fixed version
+  @Query(
+      "SELECT DISTINCT p FROM Product p "
+          + "LEFT JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "LEFT JOIN ProductDiscount pd ON p.id = pd.product.id "
+          + "LEFT JOIN Discount d ON pd.discount.id = d.id "
+          + "LEFT JOIN Favorite f ON p.id = f.product.id "
+          + "LEFT JOIN p.category c "
+          + "LEFT JOIN c.category parent "
+          + "WHERE (:categoryIds IS NULL OR p.category.id IN :categoryIds) "
+          + "AND (:brandIds IS NULL OR p.brand.id IN :brandIds) "
+          + "AND (:sizeIds IS NULL OR pv.size.id IN :sizeIds) "
+          + "AND (:colorIds IS NULL OR pv.color.id IN :colorIds) "
+          + "AND (:minPrice IS NULL OR p.basePrice >= :minPrice) "
+          + "AND (:maxPrice IS NULL OR p.basePrice <= :maxPrice) "
+          + "AND (:status IS NULL OR p.status = :status) "
+          + "AND (:inStock IS NULL OR "
+          + "     (:inStock = true AND pv.stockQuantity > 0) OR "
+          + "     (:inStock = false)) "
+          + "AND (:hasDiscount IS NULL OR "
+          + "     (:hasDiscount = true AND d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP) OR "
+          + "     (:hasDiscount = false)) "
+          + "AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+          + "AND (:material IS NULL OR LOWER(pv.material) LIKE LOWER(CONCAT('%', :material, '%'))) "
+          + "AND (:isFavorite IS NULL OR "
+          + "     (:isFavorite = true AND f.id IS NOT NULL AND (:userId IS NULL OR f.user.id = :userId)) OR "
+          + "     (:isFavorite = false)) "
+          + "AND (:rootCategoryId IS NULL OR parent.id = :rootCategoryId OR (parent IS NULL AND c.id = :rootCategoryId))")
+  Page<Product> findProductsWithComplexFilter(
+      @Param("categoryIds") List<Long> categoryIds,
+      @Param("brandIds") List<Long> brandIds,
+      @Param("sizeIds") List<Long> sizeIds,
+      @Param("colorIds") List<Long> colorIds,
+      @Param("minPrice") Double minPrice,
+      @Param("maxPrice") Double maxPrice,
+      @Param("status") ProductStatus status,
+      @Param("inStock") Boolean inStock,
+      @Param("hasDiscount") Boolean hasDiscount,
+      @Param("keyword") String keyword,
+      @Param("material") String material,
+      @Param("isFavorite") Boolean isFavorite,
+      @Param("userId") Long userId,
+      @Param("rootCategoryId") Long rootCategoryId,
+      Pageable pageable);
 }

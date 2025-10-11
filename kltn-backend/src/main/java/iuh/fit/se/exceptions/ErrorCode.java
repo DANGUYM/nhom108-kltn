@@ -100,12 +100,38 @@ public enum ErrorCode {
   DISCOUNT_ALREADY_EXISTS(1064, "Discount already exists!", HttpStatus.BAD_REQUEST),
   DISCOUNT_INVALID_VALUE(1065, "Invalid discount value!", HttpStatus.BAD_REQUEST),
   DISCOUNT_INVALID_DATE_RANGE(1066, "Invalid discount date range!", HttpStatus.BAD_REQUEST),
-  DISCOUNT_IN_USE(1067, "Discount is currently in use and cannot be deleted!", HttpStatus.BAD_REQUEST),
+  DISCOUNT_IN_USE(
+      1067, "Discount is currently in use and cannot be deleted!", HttpStatus.BAD_REQUEST),
   DISCOUNT_NOT_ACTIVE(1068, "Discount is not active!", HttpStatus.BAD_REQUEST),
   DISCOUNT_EXPIRED(1069, "Discount has expired!", HttpStatus.BAD_REQUEST),
-  PRODUCT_DISCOUNT_ALREADY_EXISTS(1070, "Product already has this discount!", HttpStatus.BAD_REQUEST),
-  PRODUCT_DISCOUNT_NOT_FOUND(1071, "Product discount not found!", HttpStatus.NOT_FOUND);
-  ;
+  PRODUCT_DISCOUNT_ALREADY_EXISTS(
+      1070, "Product already has this discount!", HttpStatus.BAD_REQUEST),
+  PRODUCT_DISCOUNT_NOT_FOUND(1071, "Product discount not found!", HttpStatus.NOT_FOUND),
+  DISCOUNT_USAGE_LIMIT_EXCEEDED(1072, "Discount usage limit exceeded!", HttpStatus.BAD_REQUEST),
+
+  // Favorite related errors
+  FAVORITE_NOT_FOUND(1073, "Favorite not found!", HttpStatus.NOT_FOUND),
+  PRODUCT_ALREADY_IN_FAVORITES(1074, "Product is already in favorites!", HttpStatus.BAD_REQUEST),
+
+  // User related errors
+  USER_NOT_EXISTED(1075, "User does not exist!", HttpStatus.NOT_FOUND),
+
+  // Product related error codes
+  //    PRODUCT_NOT_FOUND(1076, "Product not found!", HttpStatus.NOT_FOUND),
+  //    CATEGORY_NOT_FOUND(1077, "Category not found!", HttpStatus.NOT_FOUND),
+  //    BRAND_NOT_FOUND(1078, "Brand not found!", HttpStatus.NOT_FOUND),
+  //    SIZE_NOT_FOUND(1079, "Size not found!", HttpStatus.NOT_FOUND),
+  //    COLOR_NOT_FOUND(1080, "Color not found!", HttpStatus.NOT_FOUND),
+  //    PRODUCT_VARIANT_NOT_FOUND(1081, "Product variant not found!", HttpStatus.NOT_FOUND),
+  //    PRODUCT_OUT_OF_STOCK(1082, "Product is out of stock!", HttpStatus.BAD_REQUEST),
+  INVALID_PRICE_RANGE(
+      1083, "Invalid price range! Min price must be less than max price!", HttpStatus.BAD_REQUEST),
+  INVALID_DISCOUNT_RANGE(
+      1084,
+      "Invalid discount range! Min discount must be less than max discount!",
+      HttpStatus.BAD_REQUEST),
+  FILTER_CRITERIA_INVALID(1085, "Invalid filter criteria!", HttpStatus.BAD_REQUEST),
+  PRODUCT_INACTIVE(1086, "Product is inactive!", HttpStatus.BAD_REQUEST);
 
   int code;
   String message;

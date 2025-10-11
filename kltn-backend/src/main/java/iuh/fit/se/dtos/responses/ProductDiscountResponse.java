@@ -11,10 +11,10 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProductDiscountResponse {
 
-    Long productId;
-    String productName;
-    DiscountResponse discount;
-    Double originalPrice;
-    Double discountedPrice;
-    Double savedAmount;
+  Long productId;
+  String productName;
+  DiscountResponse discount;
+  Double originalPrice;
+  Double discountedPrice;
+  Double savedAmount;
 }

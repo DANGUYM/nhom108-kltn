@@ -13,7 +13,8 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
 
   List<CartItem> findByCartId(Long cartId);
 
-  Optional<CartItem> findByCartIdAndProductIdAndProductVariantId(Long cartId, Long productId, Long productVariantId);
+  Optional<CartItem> findByCartIdAndProductIdAndProductVariantId(
+      Long cartId, Long productId, Long productVariantId);
 
   Optional<CartItem> findByCartIdAndProductIdAndProductVariantIsNull(Long cartId, Long productId);
 
@@ -23,17 +24,19 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
   @Query("SELECT COALESCE(SUM(ci.quantity), 0) FROM CartItem ci WHERE ci.cart.id = :cartId")
   Long countItemsByCartId(@Param("cartId") Long cartId);
 
-  @Query("SELECT COALESCE(SUM(ci.quantity * " +
-         "CASE WHEN ci.productVariant IS NOT NULL THEN ci.productVariant.price " +
-         "ELSE ci.product.basePrice END), 0.0) " +
-         "FROM CartItem ci WHERE ci.cart.id = :cartId")
+  @Query(
+      "SELECT COALESCE(SUM(ci.quantity * "
+          + "CASE WHEN ci.productVariant IS NOT NULL THEN ci.productVariant.price "
+          + "ELSE ci.product.basePrice END), 0.0) "
+          + "FROM CartItem ci WHERE ci.cart.id = :cartId")
   Double calculateCartTotal(@Param("cartId") Long cartId);
 
   void deleteByCartId(Long cartId);
 
   Long countByCartId(Long cartId);
 
-  boolean existsByCartIdAndProductIdAndProductVariantId(Long cartId, Long productId, Long productVariantId);
+  boolean existsByCartIdAndProductIdAndProductVariantId(
+      Long cartId, Long productId, Long productVariantId);
 
   boolean existsByCartIdAndProductIdAndProductVariantIsNull(Long cartId, Long productId);
 }

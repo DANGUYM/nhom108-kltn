@@ -1,124 +1,170 @@
-import React, { useEffect } from "react";
 import {
-  BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
-import Layout from "./components/Layout";
+import { Toaster } from "sonner";
+import { useEffect } from "react";
+import { useAuthStore } from "./stores/useAuthStore";
+import Reloading from "./components/skeletions/Reloading";
+import { deleteRefreshTokenFromRedis } from "./services/useTokenService";
+import { ScrollToTop } from "./components/common/ScrollToTop";
+import AppLayout from "./layout/AppLayout";
 
-// Import all page components
-import Home from './pages/Home';
-import UserPage from './pages/UserPage';
-import NewAddress from './pages/NewAddress';
-import Category from './pages/categories/Category';
-import SearchPage from './pages/SearchPage';
-import Cart from './pages/cart/Cart';
-import Product from './pages/product/Product';
-import NotFound from './pages/NotFound';
-import RegisterMailPage from './pages/RegisterMailPage';
-import NotAuthenticated from './pages/NotAuthenticatedPage';
-import RegisterPage from './pages/RegisterPage';
+// Auth Pages
+import SignIn from "./pages/AuthPages/SignIn";
+import SignUp from "./pages/AuthPages/SignUp";
+import OtpVerification from "./pages/AuthPages/OtpVerification";
+import ForgotPassword from "./pages/AuthPages/ForgotPassword";
+import ResetPassword from "./pages/AuthPages/ResetPassword";
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import RegisterMailPage from './pages/RegisterMailPage';
 import RegisterSuccessPage from './pages/RegisterSuccessPage';
-import ChangePassword from './pages/ChangePassword';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ForgotPasswordSuccessPage from './pages/ForgotPasswordSuccessPage';
 import ChangeForgotPasswordPage from './pages/ChangeForgotPasswordPage';
-import VnpayReturn from './pages/payment/VnpayReturn';
+
+// Main Pages
+import Home from './pages/Home';
+import NotFound from './pages/NotFound';
+import SearchPage from './pages/SearchPage';
+
+// User Pages
+import UserPage from './pages/UserPage';
+import UserProfiles from "./pages/UserProfiles";
+import EditUser from './pages/EditUser';
+import ChangePassword from './pages/ChangePassword';
 import AddressesPage from './pages/AddressesPage';
+import NewAddress from './pages/NewAddress';
 import EditAddress from './pages/EditAddress';
-import AboutPage from './pages/AboutPage';
-import TermsOfService from './pages/TermsOfService';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import ShippingPolicy from './pages/ShippingPolicy';
-import FAQ from './pages/FAQ';
-import Help from './pages/Help';
+import NotAuthenticatedPage from './pages/NotAuthenticatedPage';
+
+// Product & Category Pages
+import Category from './pages/categories/Category';
 import CategoryWithSupplier from './pages/categories/CategoryWithSupplier';
+import Product from './pages/product/Product';
+
+// Shopping Pages
+import Cart from './pages/cart/Cart';
 import OrderList from './pages/cart/OrderList';
-import VoucherPage from './pages/voucher/Voucher';
-import Payment from './pages/payment/payment';
 import FavoritesPage from './pages/favorite/Favorite';
-import UserReviews from './pages/review/Review';
+import VoucherPage from './pages/voucher/Voucher';
+
+// Payment Pages
+import Payment from './pages/payment/payment';
+import VnpayReturn from './pages/payment/VnpayReturn';
 import OrderSuccess from './pages/payment/OrderSuccess';
 
-function App() {
+// Review Pages
+import UserReviews from './pages/review/Review';
+
+// Info Pages
+import AboutPage from './pages/AboutPage';
+import FAQ from './pages/FAQ';
+import Help from './pages/Help';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import ShippingPolicy from './pages/ShippingPolicy';
+import CategoryTest from './pages/CategoryTest';
+
+export default function App() {
+  const { checkAuth, authUser, isLoading } =
+    useAuthStore();
+
   useEffect(() => {
-    // Set background color for the app
-    document.body.classList.add("bg-[#F0F0F0]");
-    
-    // Clear any existing authentication data on app start to ensure clean state
-    // Comment this out if you want to persist login state across sessions
-    // localStorage.removeItem("vuvisa_access_token");
-    // localStorage.removeItem("vuvisa_user_data");
-    
+      checkAuth();
+  }, [checkAuth]);
+  console.log("authUser in App.jsx: ", authUser);
+
+  useEffect(() => {
+    const handleUnload = async () => {
+        await deleteRefreshTokenFromRedis();
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+
     return () => {
-      // Cleanup: reset background color when app unmounts
-      document.body.classList.remove("bg-[#F0F0F0]");
+      window.removeEventListener("beforeunload", handleUnload);
+      handleUnload();
     };
   }, []);
   
+  if (isLoading) {
+    return <Reloading />;
+  }
+
   return (
-    <Router>
+    <>
+      <Toaster />
+      <ScrollToTop />
       <Routes>
-        {/* Home and About Pages */}
-        <Route path="/" element={<Layout><Home /></Layout>} />
-        <Route path="/about" element={<Layout><AboutPage /></Layout>} />
-        <Route path="/terms-of-service" element={<Layout><TermsOfService /></Layout>} />
-        <Route path="/privacy-policy" element={<Layout><PrivacyPolicy /></Layout>} />
-        <Route path="/shipping-policy" element={<Layout><ShippingPolicy /></Layout>} />
-        <Route path="/faq" element={<Layout><FAQ /></Layout>} />
-        <Route path="/help" element={<Layout><Help /></Layout>} />
+        {/* Main Fashion E-commerce Layout */}
+        <Route element={<AppLayout />}>
+          {/* Home Page */}
+          <Route index path="/" element={<Home />} />
+          
+          {/* Product & Category Pages */}
+          <Route path="/category/:id" element={<Category />} />
+          <Route path="/category/:id/supplier/:supplierId" element={<CategoryWithSupplier />} />
+          <Route path="/product/:id" element={<Product />} />
+          <Route path="/search" element={<SearchPage />} />
 
-        {/* Authentication Pages */}
-        <Route path="/user/forgot-password/success" element={<ForgotPasswordSuccessPage />} />
-        <Route path="/user/forgot-password/change" element={<ChangeForgotPasswordPage />} />
-        <Route path="/user/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/auth/login" element={<Layout><LoginPage /></Layout>} />
-        <Route path="/user/register" element={<Layout><RegisterPage /></Layout>} />
-        <Route path="/user/register-mail" element={<RegisterMailPage />} />
-        <Route path="/user/register-success" element={<RegisterSuccessPage />} />
+          {/* User Profile Pages - Require Authentication */}
+          <Route path="/user" element={authUser ? <UserPage /> : <Navigate to="/signin" />} />
+          <Route path="/user/profile" element={authUser ? <UserProfiles /> : <Navigate to="/signin" />} />
+          <Route path="/user/edit" element={authUser ? <EditUser /> : <Navigate to="/signin" />} />
+          <Route path="/user/change-password" element={authUser ? <ChangePassword /> : <Navigate to="/signin" />} />
+          
+          {/* Address Management */}
+          <Route path="/user/addresses" element={authUser ? <AddressesPage /> : <Navigate to="/signin" />} />
+          <Route path="/user/addresses/new" element={authUser ? <NewAddress /> : <Navigate to="/signin" />} />
+          <Route path="/user/addresses/edit/:id" element={authUser ? <EditAddress /> : <Navigate to="/signin" />} />
 
-        {/* Search and Categories */}
-        <Route path="/search" element={<Layout><SearchPage /></Layout>} />
-        <Route path="/search/:term" element={<Layout><SearchPage /></Layout>} />
-        <Route path="/category" element={<Layout><Category /></Layout>} />
-        <Route path="/category/:categoryId" element={<Layout><Category /></Layout>} />
-        <Route path="/category/:categoryId/supplier/:supplierId" element={<Layout><CategoryWithSupplier /></Layout>} />
+          {/* Shopping Pages */}
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/orders" element={authUser ? <OrderList /> : <Navigate to="/signin" />} />
+          <Route path="/favorites" element={authUser ? <FavoritesPage /> : <Navigate to="/signin" />} />
+          <Route path="/voucher" element={authUser ? <VoucherPage /> : <Navigate to="/signin" />} />
 
-        {/* Shopping */}
-        <Route path="/cart" element={<Layout><Cart /></Layout>} />
-        <Route path="/product" element={<Layout><Product /></Layout>} />
+          {/* Payment Pages */}
+          <Route path="/payment" element={authUser ? <Payment /> : <Navigate to="/signin" />} />
+          <Route path="/payment/vnpay-return" element={<VnpayReturn />} />
+          <Route path="/payment/success" element={<OrderSuccess />} />
 
-        {/* Payment */}
-        <Route path="/payment/vnpay-return" element={<VnpayReturn />} />
-        <Route path="/payment" element={<Layout><Payment /></Layout>} />
-        <Route path="/order-success" element={<Layout><OrderSuccess /></Layout>} />
+          {/* Review Pages */}
+          <Route path="/user/reviews" element={authUser ? <UserReviews /> : <Navigate to="/signin" />} />
 
-        {/* User Management */}
-        <Route path="/user/orders" element={<Layout><OrderList /></Layout>} />
-        <Route path="/user/profile" element={<Layout><UserPage /></Layout>} />
-        <Route path="/user/addresses" element={<Layout><AddressesPage /></Layout>} />
-        <Route path="/user/addresses/new" element={<Layout><NewAddress /></Layout>} />
-        <Route path="/user/addresses/:addressId/edit" element={<Layout><EditAddress /></Layout>} />
-        <Route path="/user/change-password" element={<Layout><ChangePassword /></Layout>} />
-        <Route path="/user/wishlist" element={<Layout><FavoritesPage /></Layout>} />
-        <Route path="/user/reviews" element={<Layout><UserReviews /></Layout>} />
+          {/* Information Pages */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/shipping-policy" element={<ShippingPolicy />} />
+          
+          {/* Category API Test Route */}
+          <Route path="/category-test" element={<CategoryTest />} />
+        </Route>
 
-        {/* Vouchers */}
-        <Route path="/voucher" element={<Layout><VoucherPage /></Layout>} />
-        <Route path="/ma-giam-gia" element={<Layout><VoucherPage /></Layout>} />
+        {/* Authentication Pages - No Layout */}
+        <Route path="/signin" element={!authUser ? <SignIn /> : <Navigate to="/" />} />
+        <Route path="/signup" element={!authUser ? <SignUp /> : <Navigate to="/" />} />
+        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
+        <Route path="/register" element={!authUser ? <RegisterPage /> : <Navigate to="/" />} />
+        <Route path="/register-mail" element={!authUser ? <RegisterMailPage /> : <Navigate to="/" />} />
+        <Route path="/register-success" element={<RegisterSuccessPage />} />
+        <Route path="/otp-verification" element={!authUser ? <OtpVerification /> : <Navigate to="/" />} />
+        <Route path="/forgot-password" element={!authUser ? <ForgotPassword /> : <Navigate to="/" />} />
+        <Route path="/forgot-password-page" element={!authUser ? <ForgotPasswordPage /> : <Navigate to="/" />} />
+        <Route path="/forgot-password-success" element={<ForgotPasswordSuccessPage />} />
+        <Route path="/reset-password" element={!authUser ? <ResetPassword /> : <Navigate to="/" />} />
+        <Route path="/change-forgot-password" element={<ChangeForgotPasswordPage />} />
+        <Route path="/not-authenticated" element={<NotAuthenticatedPage />} />
 
-        {/* Error Pages */}
-        <Route path="/unauthenticated" element={<NotAuthenticated />} />
-
-        {/* Fallback route */}
-        <Route path="*" element={<Layout><NotFound /></Layout>} />
-
+        {/* Fallback Route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
-    </Router>
+    </>
   );
 }
-
-
-
-export default App;

@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import vuvisaLogo from '/logo_v2.png'
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
+import UserDropdown from '../components/header/UserDropdown';
+// import { useSidebar } from "../context/SidebarContext";
+import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 
 enum NotificationType {
   CALENDAR = 'CALENDAR',
@@ -31,243 +34,125 @@ const staticUserData = {
   roles: [{ name: "USER" }]
 };
 
-// Static notifications data
-const staticNotifications: NotificationResponseDTO[] = [
-  {
-    id: 1,
-    title: "Đơn hàng của bạn đã được xác nhận",
-    message: "Đơn hàng #DH001 đã được xác nhận và đang được chuẩn bị",
-    createdAt: "2024-10-05T10:30:00",
-    isRead: false,
-    type: NotificationType.ORDER,
-    originalType: 'ORDER'
-  },
-  {
-    id: 2,
-    title: "Khuyến mãi đặc biệt cho bạn",
-    message: "Giảm giá 20% cho tất cả sản phẩm thời trang - Chỉ còn 2 ngày",
-    createdAt: "2024-10-04T15:45:00",
-    isRead: false,
-    type: NotificationType.PROMOTION,
-    originalType: 'PROMOTION'
-  },
-  {
-    id: 3,
-    title: "Cập nhật hệ thống",
-    message: "Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai",
-    createdAt: "2024-10-03T14:20:00",
-    isRead: true,
-    type: NotificationType.SYSTEM,
-    originalType: 'SYSTEM'
-  },
-  {
-    id: 4,
-    title: "Sản phẩm mới đã có mặt",
-    message: "Khám phá bộ sưu tập thời trang mùa thu mới nhất",
-    createdAt: "2024-10-02T09:15:00",
-    isRead: true,
-    type: NotificationType.PRODUCT,
-    originalType: 'PRODUCT'
-  }
-];
+// Static notifications data - commented out as not using in current implementation
+// const staticNotifications: NotificationResponseDTO[] = [
+//   {
+//     id: 1,
+//     title: "Đơn hàng của bạn đã được xác nhận",
+//     message: "Đơn hàng #DH001 đã được xác nhận và đang được chuẩn bị",
+//     createdAt: "2024-10-05T10:30:00",
+//     isRead: false,
+//     type: NotificationType.ORDER,
+//     originalType: 'ORDER'
+//   },
+//   {
+//     id: 2,
+//     title: "Khuyến mãi đặc biệt cho bạn",
+//     message: "Giảm giá 20% cho tất cả sản phẩm thời trang - Chỉ còn 2 ngày",
+//     createdAt: "2024-10-04T15:45:00",
+//     isRead: false,
+//     type: NotificationType.PROMOTION,
+//     originalType: 'PROMOTION'
+//   },
+//   {
+//     id: 3,
+//     title: "Cập nhật hệ thống",
+//     message: "Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai",
+//     createdAt: "2024-10-03T14:20:00",
+//     isRead: true,
+//     type: NotificationType.SYSTEM,
+//     originalType: 'SYSTEM'
+//   },
+//   {
+//     id: 4,
+//     title: "Sản phẩm mới đã có mặt",
+//     message: "Khám phá bộ sưu tập thời trang mùa thu mới nhất",
+//     createdAt: "2024-10-02T09:15:00",
+//     isRead: true,
+//     type: NotificationType.PRODUCT,
+//     originalType: 'PRODUCT'
+//   }
+// ];
 
 interface ProductCategoriesProps {
   handleClick: () => void;
   isOpen: boolean; // Thêm prop isOpen để kiểm soát từ component cha
 }
 
-// Static category data - Comprehensive fashion categories based on major fashion retailers
-const categories = [
-  {
-    title: 'Thời trang nam',
-    subCategories: [
-      'Áo T-shirt & Tank top',
-      'Áo Polo & Henley',
-      'Áo sơ mi & Dress shirt',
-      'Áo hoodie & Sweatshirt',
-      'Áo khoác & Blazer',
-      'Quần jeans & Denim',
-      'Quần chinos & Casual',
-      'Quần short & Bermuda',
-      'Quần tây & Formal',
-      'Đồ lót & Underwear',
-      'Đồ ngủ & Sleepwear',
-      'Áo vest & Suit'
-    ],
-  },
-  {
-    title: 'Thời trang nữ',
-    subCategories: [
-      'Áo T-shirt & Basic tee',
-      'Áo blouse & Shirt',
-      'Áo crop top & Tank',
-      'Áo hoodie & Cardigan',
-      'Áo khoác & Jacket',
-      'Váy ngắn & Mini dress',
-      'Váy dài & Maxi dress',
-      'Jumpsuit & Romper',
-      'Quần jeans & Skinny',
-      'Quần legging & Yoga pants',
-      'Quần short & Skirt',
-      'Đồ lót & Lingerie',
-      'Đồ ngủ & Pajamas'
-    ],
-  },
-  {
-    title: 'Thời trang trẻ em',
-    subCategories: [
-      'Bé trai (0-2 tuổi)',
-      'Bé gái (0-2 tuổi)', 
-      'Trẻ em trai (3-14 tuổi)',
-      'Trẻ em gái (3-14 tuổi)',
-      'Thiếu niên (15-18 tuổi)',
-      'Đồ ngủ trẻ em',
-      'Đồ lót trẻ em',
-      'Trang phục học sinh'
-    ],
-  },
-  {
-    title: 'Giày dép',
-    subCategories: [
-      'Giày sneaker & Casual',
-      'Giày chạy bộ & Running',
-      'Giày tập gym & Training',
-      'Giày bóng đá & Football',
-      'Giày tennis & Court',
-      'Giày cao gót & Heels',
-      'Giày búp bê & Flats',
-      'Giày boot & Ankle boot',
-      'Dép & Sandals',
-      'Dép lào & Flip flops',
-      'Giày tây & Oxford',
-      'Giày lười & Loafers'
-    ],
-  },
-  {
-    title: 'Túi xách & Balo',
-    subCategories: [
-      'Túi xách tay & Handbag',
-      'Túi đeo chéo & Crossbody',
-      'Túi tote & Shopping bag',
-      'Túi clutch & Evening bag',
-      'Balo laptop & Backpack',
-      'Balo du lịch & Travel',
-      'Balo học sinh & School',
-      'Túi thể thao & Gym bag',
-      'Ví nam & Men wallet',
-      'Ví nữ & Women wallet',
-      'Túi đựng mỹ phẩm',
-      'Vali & Luggage'
-    ],
-  },
-  {
-    title: 'Phụ kiện thời trang',
-    subCategories: [
-      'Đồng hồ & Watches',
-      'Trang sức & Jewelry',
-      'Kính mát & Sunglasses',
-      'Kính cận & Eyewear',
-      'Nón & Caps',
-      'Khăn & Scarves',
-      'Thắt lưng & Belts',
-      'Găng tay & Gloves',
-      'Tất vớ & Socks',
-      'Cà vạt & Ties',
-      'Trâm cài & Hair accessories',
-      'Khuyên tai & Earrings'
-    ],
-  },
-  {
-    title: 'Đồ thể thao',
-    subCategories: [
-      'Áo thể thao & Sports shirt',
-      'Quần thể thao & Joggers',
-      'Đồ tập gym & Workout',
-      'Đồ yoga & Pilates',
-      'Đồ bơi & Swimwear',
-      'Đồ chạy bộ & Running',
-      'Đồ bóng đá & Football',
-      'Đồ tennis & Badminton',
-      'Đồ basketball & Hoops',
-      'Áo khoác thể thao & Track jacket',
-      'Găng tay thể thao & Sports gloves',
-      'Băng đô & Headbands'
-    ],
-  },
-  {
-    title: 'Thương hiệu nổi tiếng',
-    subCategories: [
-      'Nike & Swoosh',
-      'Adidas & Three stripes',
-      'Puma & Cat logo', 
-      'Uniqlo & LifeWear',
-      'Zara & Fast fashion',
-      'H&M & Trendy',
-      'Levi\'s & Denim',
-      'Calvin Klein & CK',
-      'Tommy Hilfiger & Classic',
-      'Polo Ralph Lauren',
-      'Lacoste & Crocodile',
-      'Converse & Chuck Taylor'
-    ],
-  }
-];
+// Import category service
+import { getCachedRootCategories, getSubCategories } from "../services/categoryService";
+import { CategoryResponse } from "@/types/responses/categoryResponse";
 
 const ProductCategories: React.FC<ProductCategoriesProps> = ({ handleClick, isOpen }) => {
-  // const [groupedCategories, setGroupedCategories] = useState<Record<CategoryType, Category[]> | null>(null);
-  // const [isLoading, setIsLoading] = useState(false);
-  // const [error, setError] = useState<string | null>(null);
-  // const fetchedRef = useRef(false); // Thêm ref để track đã fetch chưa
+  const [rootCategories, setRootCategories] = useState<CategoryResponse[]>([]);
+  const [subCategoriesMap, setSubCategoriesMap] = useState<Record<number, CategoryResponse[]>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false); // Thêm ref để track đã fetch chưa
   const navigate = useNavigate(); 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const leaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Comment out API fetch function
-    // const fetchCategories = async () => {
-    //   if (fetchedRef.current || isLoading) return;
-    //   
-    //   setError(null);
-    //   setIsLoading(true);
-    //   try {
-    //     const storedCategories = localStorage.getItem("vuvisa_product_categories");
+  // API fetch function
+  const fetchCategories = async () => {
+    if (fetchedRef.current || isLoading) return;
+    
+    setError(null);
+    setIsLoading(true);
+    try {
+      // Fetch root categories
+      const rootCats = await getCachedRootCategories();
+      setRootCategories(rootCats);
+      
+      // Fetch subcategories for each root category
+      const subCatsMap: Record<number, CategoryResponse[]> = {};
+      const subCategoryPromises = rootCats.map(async (category) => {
+        try {
+          const subCats = await getSubCategories(category.id);
+          subCatsMap[category.id] = subCats;
+        } catch (error) {
+          console.warn(`Failed to fetch subcategories for ${category.name}:`, error);
+          subCatsMap[category.id] = [];
+        }
+      });
+      
+      await Promise.allSettled(subCategoryPromises);
+      setSubCategoriesMap(subCatsMap);
+      fetchedRef.current = true;
+      
+    } catch (err) {
+      setError("Không thể tải danh mục. Vui lòng thử lại sau.");
+      console.error("Fetch error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    //     if (storedCategories) {
-    //       setGroupedCategories(JSON.parse(storedCategories));
-    //       fetchedRef.current = true;
-    //       setIsLoading(false);
-    //       return;
-    //     }
+  useEffect(() => {
+    if (isOpen && !fetchedRef.current) {
+      fetchCategories();
+    }
+  }, [isOpen]);
 
-    //     const data = await getAllCategoriesGroupedByType();
+    const handleCategoryClick = (categoryId: number, categoryName: string) => {
+    navigate(`/category/${categoryId}`, {
+      state: { 
+        categoryId, 
+        categoryName,
+        rootCategories,
+        subCategories: subCategoriesMap[categoryId] || []
+      }
+    });
+    handleClick();
+  };
 
-    //     if (!fetchedRef.current) { // Kiểm tra thêm
-    //       setGroupedCategories(data);
-    //       fetchedRef.current = true;
-
-    //       try {
-    //         localStorage.setItem("vuvisa_product_categories", JSON.stringify(data));
-    //       } catch (storageError) {
-    //         console.error("Không thể lưu danh mục vào localStorage:", storageError);
-    //       }
-
-    //     }
-    //   } catch (err) {
-    //     setError("Không thể tải danh mục. Vui lòng thử lại sau.");
-    //     console.error("Fetch error:", err);
-    //   } finally {
-    //     setIsLoading(false);
-    //   }
-    // };
-
-    // useEffect(() => {
-    //   if (isOpen && !fetchedRef.current) {
-    //     fetchCategories();
-    //   }
-    // }, [isOpen]);
-
-    const handleCategoryClick = (categoryName: string) => {
-    navigate(`/category/${categoryName}`, {
-      state: { categories } // Truyền dữ liệu categories qua state
+  const handleSubCategoryClick = (subCategory: CategoryResponse) => {
+    navigate(`/category/${subCategory.id}`, {
+      state: {
+        categoryId: subCategory.id,
+        categoryName: subCategory.name,
+        parentCategory: subCategory.parentCategory
+      }
     });
     handleClick();
   };
@@ -297,11 +182,11 @@ const ProductCategories: React.FC<ProductCategoriesProps> = ({ handleClick, isOp
     };
   }, []);
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-      handleClick();
-    }
-  };
+  // const handleMouseMove = (e: MouseEvent) => {
+  //   if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+  //     handleClick();
+  //   }
+  // };
 
   return (
     <div   className="relative px-4">
@@ -322,30 +207,51 @@ const ProductCategories: React.FC<ProductCategoriesProps> = ({ handleClick, isOp
         <div ref={dropdownRef} className="" 
         onMouseLeave={handleMouseLeave}
         onMouseEnter={handleMouseEnter} >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {categories.map((category, index) => (
-              <div key={index} className="border border-gray-200 p-3 rounded-lg">
-                <h3 className="font-semibold text-lg text-gray-800 mb-2">
-                  {category.title}
-                </h3>
-                <ul className="space-y-1">
-                  {category.subCategories.map((subCategory, subIndex) => (
-                    <li 
-                    key={subIndex}
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            </div>
+          )}
+          
+          {error && (
+            <div className="text-center py-4 text-red-600">
+              {error}
+            </div>
+          )}
+          
+          {!isLoading && !error && rootCategories.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {rootCategories.map((category) => (
+                <div key={category.id} className="border border-gray-200 p-3 rounded-lg">
+                  <h3 
+                    className="font-semibold text-lg text-gray-800 mb-2 cursor-pointer hover:text-red-600 transition-colors"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('List item clicked:', subCategory);
-                      handleCategoryClick(subCategory)}}
-                      className="text-gray-600 hover:text-red-600 cursor-pointer transition-colors"
-                    >
-                      {subCategory}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+                      handleCategoryClick(category.id, category.name);
+                    }}
+                  >
+                    {category.name}
+                  </h3>
+                  <ul className="space-y-1">
+                    {(subCategoriesMap[category.id] || []).map((subCategory) => (
+                      <li 
+                        key={subCategory.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleSubCategoryClick(subCategory);
+                        }}
+                        className="text-gray-600 hover:text-red-600 cursor-pointer transition-colors"
+                      >
+                        {subCategory.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -358,35 +264,40 @@ const Header: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  // const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Static notification state
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<NotificationType | 'all'>('all');
-  const [displayLimit, setDisplayLimit] = useState(3);
+  // const [displayLimit, setDisplayLimit] = useState(3);
   const [notifications, setNotifications] = useState<NotificationResponseDTO[]>([]); // Empty notifications for non-logged-in users
   
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0); // Static unread count - starts at 0, set when logged in
 
   // Static user info (simulating logged in user)
-  const [userInfo, setUserInfo] = useState<{ fullName: string; username: string; avatar_url: string; role: string } | null>(staticUserData);
-  // Comment out API call for categories
-  // const [groupedCategories, setGroupedCategories] = useState<Record<CategoryType, Category[]> | null>(null);
+  // const [userInfo, setUserInfo] = useState<{ fullName: string; username: string; avatar_url: string; role: string } | null>(staticUserData);
+  // Categories state for dropdown
+  const [rootCategories, setRootCategories] = useState<CategoryResponse[]>([]);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
 
-  // useEffect(() => {
-  //   const fetchCategories = async () => {
-  //     try {
-  //       const data = await getAllCategoriesGroupedByType();
-  //       setGroupedCategories(data);
-  //     } catch (error) {
-  //       console.error('Error fetching categories:', error);
-  //     }
-  //   };
-  // 
-  //   fetchCategories();
-  // }, []);
+  // Fetch categories when component mounts
+  useEffect(() => {
+    const fetchCategoriesForHeader = async () => {
+      try {
+        setIsCategoriesLoading(true);
+        const categories = await getCachedRootCategories();
+        setRootCategories(categories);
+      } catch (error) {
+        console.error('Error fetching categories for header:', error);
+      } finally {
+        setIsCategoriesLoading(false);
+      }
+    };
+
+    fetchCategoriesForHeader();
+  }, []);
 
 
   // Filter notifications based on active filter
@@ -400,7 +311,7 @@ const Header: React.FC = () => {
   // Cập nhật hàm thay đổi filter
   const changeFilter = (filter: NotificationType | 'all') => {
     setActiveFilter(filter);
-    setDisplayLimit(3); // Reset display limit khi thay đổi filter
+    // setDisplayLimit(3); // Reset display limit khi thay đổi filter - commented out
   };
 
   // Handle notification click
@@ -413,7 +324,7 @@ const Header: React.FC = () => {
 
     setIsNotificationsOpen(prev => !prev);
     setIsOpen(false);
-    setIsUserMenuOpen(false);
+    // setIsUserMenuOpen(false); // commented out
 
     // Simulate loading for 500ms
     if (!isNotificationsOpen) {
@@ -492,21 +403,21 @@ const Header: React.FC = () => {
         ]);
 
         try {
-          const user = JSON.parse(userData);
-          setUserInfo({
-            fullName: user.full_name || user.fullName || "Người dùng",
-            username: user.username || "user",
-            avatar_url: user.avatar_url || staticUserData.avatar_url,
-            role: "USER"
-          });
+          // const user = JSON.parse(userData);
+          // setUserInfo({
+          //   fullName: user.full_name || user.fullName || "Người dùng",
+          //   username: user.username || "user",
+          //   avatar_url: user.avatar_url || staticUserData.avatar_url,
+          //   role: "USER"
+          // });
         } catch (error) {
           console.error("Error parsing user data:", error);
           setIsLoggedIn(false);
-          setUserInfo(null);
+          // setUserInfo(null);
         }
       } else {
         setIsLoggedIn(false);
-        setUserInfo(null);
+        // setUserInfo(null);
         setUnreadCount(0);
         setNotifications([]);
         setCartItemCount(0);
@@ -526,7 +437,7 @@ const Header: React.FC = () => {
   const handleClick = () => {
     setIsNotificationsOpen(false);
     setIsOpen((prev) => !prev);
-    setIsUserMenuOpen(false);
+    // setIsUserMenuOpen(false); // commented out
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -538,42 +449,42 @@ const Header: React.FC = () => {
     console.log(searchTerm);
   }; 
 
-  const handleLogout = () => {
-    if (isLoggingOut) return; // Prevent multiple clicks
+  // const handleLogout = () => {
+  //   if (isLoggingOut) return; // Prevent multiple clicks
 
-    setIsLoggingOut(true);
+  //   setIsLoggingOut(true);
     
-    // Simulate logout process
-    setTimeout(() => {
-      // Clear localStorage
-      localStorage.removeItem("vuvisa_access_token");
-      localStorage.removeItem("vuvisa_user_data");
+  //   // Simulate logout process
+  //   setTimeout(() => {
+  //     // Clear localStorage
+  //     localStorage.removeItem("vuvisa_access_token");
+  //     localStorage.removeItem("vuvisa_user_data");
       
-      // Reset state
-      setIsLoggedIn(false);
-      setUserInfo(null);
-      setUnreadCount(0);
-      setNotifications([]);
-      setCartItemCount(0);
-      setIsUserMenuOpen(false);
+  //     // Reset state
+  //     setIsLoggedIn(false);
+  //     // setUserInfo(null); // commented out
+  //     setUnreadCount(0);
+  //     setNotifications([]);
+  //     setCartItemCount(0);
+  //     // setIsUserMenuOpen(false); // commented out
       
-      toast.success("Đăng xuất thành công!");
-      setIsLoggingOut(false);
-      window.location.href = "/";
-    }, 1000);
-  }
+  //     toast.success("Đăng xuất thành công!");
+  //     setIsLoggingOut(false);
+  //     window.location.href = "/";
+  //   }, 1000);
+  // }
 
-  const toggleUserMenu = () => {
-    if (!isLoggedIn) {
-      // Redirect to login if not authenticated
-      navigate('/auth/login');
-      return;
-    }
+  // const toggleUserMenu = () => {
+  //   if (!isLoggedIn) {
+  //     // Redirect to login if not authenticated
+  //     navigate('/auth/login');
+  //     return;
+  //   }
 
-    setIsUserMenuOpen((prev) => !prev);
-    setIsNotificationsOpen(false);
-    setIsOpen(false);
-  };
+  //   // setIsUserMenuOpen((prev) => !prev); // commented out
+  //   setIsNotificationsOpen(false);
+  //   setIsOpen(false);
+  // };
 
   // Static cart - no API calls needed
 
@@ -608,7 +519,7 @@ const Header: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="form-search md:w-[calc(100%-210px)] w-[calc(100%-104px)] px-[8px]">
+          <div className="form-search md:w-[calc(100%-370px)] w-[calc(100%-104px)] px-[8px]">
             <form onSubmit={handleSearchSubmit} className="md:relative">
               <input
                 maxLength={128}
@@ -635,8 +546,8 @@ const Header: React.FC = () => {
               </span>
             </form>
           </div>
-          <div className="flex items-center justify-between md:w-[320px] pl-0 md:pl-[24px]">
-            <div className="hidden md:flex flex-col cursor-pointer justify-center items-center group" onClick={toggleNotifications}>
+          <div className="flex items-center justify-between md:w-[480px] pl-0 md:pl-[24px] gap-2 md:gap-3">
+            <div className="hidden md:flex flex-col cursor-pointer justify-center items-center group min-w-[60px]" onClick={toggleNotifications}>
               <div className="relative">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                   <rect className="fill-none" width="24" height="24" />
@@ -649,7 +560,7 @@ const Header: React.FC = () => {
                   </span>
                 )}
               </div>
-              <span className="text-[12px] text-[#7A7E7F] group-hover:md:stroke-[#5A5E5F]">Thông báo</span>
+              <span className="text-[11px] text-[#7A7E7F] group-hover:md:stroke-[#5A5E5F] whitespace-nowrap">Thông báo</span>
             </div>
               {isNotificationsOpen && (
               <div className="absolute top-[70px] right-[100px] bg-white shadow-lg rounded-md p-3 w-[350px] z-20">
@@ -806,7 +717,7 @@ const Header: React.FC = () => {
               )}
               </div>
               )}
-            <div className="flex flex-col cursor-pointer justify-center items-center group relative">
+            <div className="flex flex-col cursor-pointer justify-center items-center group relative min-w-[60px]">
               <a href={'/cart'} className='flex items-center justify-center flex-col'>
                 <div className="relative">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
@@ -822,140 +733,16 @@ const Header: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <span className="text-[12px] text-white md:text-[#7A7E7F] group-hover:md:stroke-[#5A5E5F] hidden md:block">Giỏ hàng</span>
+                <span className="text-[11px] text-white md:text-[#7A7E7F] group-hover:md:stroke-[#5A5E5F] hidden md:block whitespace-nowrap">Giỏ hàng</span>
               </a>
             </div>
-            <div className="flex flex-col cursor-pointer justify-center items-center relative">
-              <div onClick={toggleUserMenu} className="flex flex-col items-center">
-                {isLoggedIn && userInfo ? (
-                  <div className="w-[24px] h-[24px] rounded-full overflow-hidden border border-gray-200">
-                    <img 
-                      src={userInfo.avatar_url}
-                      alt={userInfo.fullName || userInfo.username}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                    <rect className="fill-none" width="24" height="24" />
-                    <ellipse className="fill-none stroke-white md:stroke-[#7a7e7f] stroke-[2] stroke-linecap-round stroke-linejoin-round" cx="3.922" cy="4.224" rx="3.922" ry="4.224" transform="translate(8.14 3.017)" />
-                    <path className="fill-none stroke-white md:stroke-[#7a7e7f] stroke-[2] stroke-linecap-round stroke-linejoin-round" d="M6,21.153V19.1A4.08,4.08,0,0,1,10.057,15h4.057a4.08,4.08,0,0,1,4.057,4.1v2.051" transform="translate(-0.085 -0.228)" />
-                  </svg>
-                )}
-                <span className="text-[12px] text-white md:text-[#7A7E7F] hidden md:block">{userInfo?.username || "Người dùng"}</span>
-              </div>
-              {isUserMenuOpen && (
-                <div className="absolute top-[calc(100%+15px)] right-0 bg-white shadow-md rounded-md p-4 w-[300px] z-10">
-                  {isLoggedIn && userInfo ? (
-                    <>
-                    <div className="flex flex-col">
-                      {/* User header with avatar */}
 
-                      <a href="/user/profile" className="flex items-center p-4 border-b border-gray-100">
-                        <div className="w-[40px] h-[40px] relative rounded-full bg-[#FFE8E2] mr-3 flex items-center justify-center">
-                          <span className="text-[#E57905]">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M20.8 9.64L18.36 7.2L19.04 3.76L15.6 4.44L13.16 2L10.72 4.44L7.28 3.76L7.96 7.2L5.52 9.64L7.96 12.08L7.28 15.52L10.72 14.84L13.16 17.28L15.6 14.84L19.04 15.52L18.36 12.08L20.8 9.64Z" fill="#E57905"/>
-                            </svg>
-                          </span>
-                          <img 
-                            src={userInfo.avatar_url}
-                            alt={userInfo.fullName}
-                            className="absolute inset-0 w-full h-full object-cover rounded-full"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-800">{userInfo.fullName}</h3>
-                          <p className="text-sm text-gray-500">Thành viên Vuvisa</p>
-                        </div>
-                        <div className="text-gray-400">
-                          <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 6L15 12L9 18"></path>
-                          </svg>
-                        </div>
-                      </a>
-                    </div>
+            <div className="flex flex-col cursor-pointer justify-center items-center group">
+              <ThemeToggleButton />
+            </div>
 
-                    {/* Menu items */}
-                    <a href="/user/orders" className="flex items-center p-3 hover:bg-gray-50">
-                      <div className="w-8 h-8 flex items-center justify-center mr-3 text-gray-500">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M17 3H7C6.46957 3 5.96086 3.21071 5.58579 3.58579C5.21071 3.96086 5 4.46957 5 5V19C5 19.5304 5.21071 20.0391 5.58579 20.4142C5.96086 20.7893 6.46957 21 7 21H17C17.5304 21 18.0391 20.7893 18.4142 20.4142C18.7893 20.0391 19 19.5304 19 19V5C19 4.46957 18.7893 3.96086 18.4142 3.58579C18.0391 3.21071 17.5304 3 17 3Z" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M9 7H15" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M9 11H15" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M9 15H12" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <a className="text-gray-600" href="/user/orders">
-                        Đơn hàng của tôi
-                      </a>
-                    </a>
-
-                    <a href="/user/wishlist" className="flex items-center p-3 hover:bg-gray-50">
-                      <div className="w-8 h-8 flex items-center justify-center mr-3 text-gray-500">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <span className="text-gray-600">Sản phẩm yêu thích</span>
-                    </a>
-
-                    <a href="/voucher" className="flex items-center p-3 hover:bg-gray-50">
-                      <div className="w-8 h-8 flex items-center justify-center mr-3 text-gray-500">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M20 12V22H4V12" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M22 7H2V12H22V7Z" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M12 22V7" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M12 7H16.5C17.163 7 17.7989 6.73661 18.2678 6.26777C18.7366 5.79893 19 5.16304 19 4.5C19 3.83696 18.7366 3.20107 18.2678 2.73223C17.7989 2.26339 17.163 2 16.5 2C13 2 12 7 12 7Z" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M12 7H7.5C6.83696 7 6.20107 6.73661 5.73223 6.26777C5.26339 5.79893 5 5.16304 5 4.5C5 3.83696 5.26339 3.20107 5.73223 2.73223C6.20107 2.26339 6.83696 2 7.5 2C11 2 12 7 12 7Z" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <span className="text-gray-600">Wallet Voucher</span>
-                    </a>
-
-                    {/* <a href="/user/v-points" className="flex items-center p-3 hover:bg-gray-50">
-                      <div className="w-8 h-8 flex items-center justify-center mr-3 text-gray-500 font-bold border border-gray-300 rounded">
-                        F
-                      </div>
-                      <span className="text-gray-600">Tài khoản V-point</span>
-                    </a> */}
-
-                    <button 
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      className="flex items-center p-3 hover:bg-gray-50 border-t border-gray-100 w-full text-left cursor-pointer"
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center mr-3 text-gray-500">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M16 17L21 12L16 7" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M21 12H9" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      {isLoggingOut ? (
-                        <div className="flex items-center">
-                          <span className="text-gray-400">Đang đăng xuất...</span>
-                          <div className="ml-2 animate-spin h-4 w-4 border-t-2 border-b-2 border-[#C92127] rounded-full"></div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-600">Thoát tài khoản</span>
-                      )}
-                    </button>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-start">
-                      <a href="/user/register" className="text-sm bg-[#C92127] text-white hover:bg-[#a71b20] py-2 px-4 rounded-md mb-2 text-center block w-full cursor-pointer">
-                        Đăng ký
-                      </a>
-                      <a href="/user/login" className="text-sm bg-white text-[#C92127] border border-[#C92127] hover:bg-[#f8d7da] py-2 px-4 rounded-md text-center block w-full cursor-pointer">
-                        Đăng nhập
-                      </a>
-
-                    </div>
-
-                  )}
-                </div>
-              )}
+            <div className="flex flex-col cursor-pointer justify-center items-center group">
+              <UserDropdown/>
             </div>
           </div>
         </div>
