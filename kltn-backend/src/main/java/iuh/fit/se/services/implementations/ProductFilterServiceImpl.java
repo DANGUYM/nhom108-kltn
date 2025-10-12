@@ -73,6 +73,10 @@ public class ProductFilterServiceImpl implements IProductFilterService {
             filterRequest.getCategoryId(),
             pageable
         );
+
+        System.out.println("Filtered products count: " + products.getTotalElements());
+        System.out.println("Filtered products count: " + products);
+
         
         return products.map(productMapper::toProductDetailResponse);
     }
