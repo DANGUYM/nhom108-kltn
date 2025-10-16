@@ -21,6 +21,9 @@ public class ProductMapper {
     private final ProductVariantRepository productVariantRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductDiscountRepository productDiscountRepository;
+    private final FavoriteRepository favoriteRepository;
+    private final ReviewRepository reviewRepository;
+    private final OrderDetailRepository orderDetailRepository;
     // Add other repositories as needed
 
     public ProductResponse toProductResponse(Product product) {
@@ -142,6 +145,12 @@ public class ProductMapper {
         // Generate slug
         String slug = generateSlug(product.getName());
 
+        // Aggregate metrics from database
+        Long favoriteCount = Optional.ofNullable(favoriteRepository.countByProductId(product.getId())).orElse(0L);
+        Long reviewCount = Optional.ofNullable(reviewRepository.countByProductId(product.getId())).orElse(0L);
+        Long orderCount = Optional.ofNullable(orderDetailRepository.countByProductId(product.getId())).orElse(0L);
+        Double averageRating = Optional.ofNullable(reviewRepository.getAverageRatingByProductId(product.getId())).orElse(0.0);
+
         return ProductDetailResponse.builder()
             .id(product.getId())
             .name(product.getName())
@@ -164,16 +173,14 @@ public class ProductMapper {
             .inStock(inStock)
             .imageUrls(imageUrls)
             .primaryImageUrl(primaryImageUrl)
-            .averageRating(0.0) // TODO: Calculate from reviews when implemented
-            .totalReviews(0) // TODO: Calculate from reviews when implemented
             .createdAt(product.getCreatedAt())
             .updatedAt(product.getUpdatedAt())
             .isNew(isNew)
-            .isBestSeller(false) // TODO: Implement logic based on sales data
-            .isFavorite(false) // TODO: Check user favorites when user context available
-            .favoriteCount(0) // TODO: Count favorites when implemented
+            .favoriteCount(favoriteCount != null ? favoriteCount.intValue() : 0)
+            .reviewCount(reviewCount != null ? reviewCount.intValue() : 0)
+            .orderCount(orderCount != null ? orderCount.intValue() : 0)
+            .averageRating(averageRating)
             .slug(slug)
-            .tags(new ArrayList<>()) // TODO: Implement tags when needed
             .build();
     }
 

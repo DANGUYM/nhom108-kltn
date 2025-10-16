@@ -109,10 +109,6 @@ const CATEGORIES_CACHE_KEY = "vuvisa_product_categories";
 const CACHE_EXPIRY_KEY = "vuvisa_categories_cache_expiry";
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-/**
- * Get categories from cache or fetch from API
- * @returns Promise<CategoryResponse[]>
- */
 export const getCachedRootCategories = async (): Promise<CategoryResponse[]> => {
   try {
     // Check cache first

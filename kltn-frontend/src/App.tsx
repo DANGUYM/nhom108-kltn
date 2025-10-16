@@ -2,14 +2,17 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
-import { Toaster } from "sonner";
-import { useEffect } from "react";
+import { Toaster, toast } from "sonner";
+import { useEffect, useRef } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import Reloading from "./components/skeletions/Reloading";
 import { deleteRefreshTokenFromRedis } from "./services/useTokenService";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import AppLayout from "./layout/AppLayout";
+import { addToCart } from "./services/cartService";
+import { AddToCartPayload } from "./types/cart";
 
 // Auth Pages
 import SignIn from "./pages/AuthPages/SignIn";
@@ -41,8 +44,7 @@ import EditAddress from './pages/EditAddress';
 import NotAuthenticatedPage from './pages/NotAuthenticatedPage';
 
 // Product & Category Pages
-import Category from './pages/categories/Category';
-import CategoryWithSupplier from './pages/categories/CategoryWithSupplier';
+// import Category from './pages/categories/Category';
 import Product from './pages/product/Product';
 
 // Shopping Pages
@@ -66,16 +68,92 @@ import Help from './pages/Help';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import ShippingPolicy from './pages/ShippingPolicy';
-import CategoryTest from './pages/CategoryTest';
 
 export default function App() {
-  const { checkAuth, authUser, isLoading } =
-    useAuthStore();
+  const { checkAuth, authUser, isLoading } = useAuthStore();
+  const navigate = useNavigate();
+  const prevAuthUser = useRef(authUser);
 
   useEffect(() => {
-      checkAuth();
+    checkAuth();
   }, [checkAuth]);
-  console.log("authUser in App.jsx: ", authUser);
+
+  useEffect(() => {
+    const handleLoginSync = async () => {
+      // Check if user has just logged in
+      if (authUser && !prevAuthUser.current) {
+        const localCartData = localStorage.getItem('cart');
+        const buyNowItemData = localStorage.getItem('buyNowItem');
+
+        let syncPromise = Promise.resolve();
+        let shouldNavigateToCart = false;
+
+        if (localCartData || buyNowItemData) {
+            const toastId = toast.loading("Đang đồng bộ giỏ hàng của bạn...");
+
+            const syncTasks: Promise<any>[] = [];
+
+            // Sync local cart
+            if (localCartData) {
+                try {
+                    const localCartItems: any[] = JSON.parse(localCartData);
+                    localCartItems.forEach(item => {
+                        const payload: AddToCartPayload = {
+                            userId: authUser.id,
+                            productId: item.productId,
+                            productVariantId: item.productVariantId,
+                            quantity: item.quantity,
+                        };
+                        syncTasks.push(addToCart(payload));
+                    });
+                } catch (error) {
+                    console.error("Error parsing local cart data:", error);
+                }
+            }
+
+            // Sync buy now item
+            if (buyNowItemData) {
+                try {
+                    const buyNowItem = JSON.parse(buyNowItemData);
+                    const payload: AddToCartPayload = {
+                        userId: authUser.id,
+                        productId: buyNowItem.productId,
+                        productVariantId: buyNowItem.productVariantId,
+                        quantity: buyNowItem.quantity,
+                    };
+                    syncTasks.push(addToCart(payload));
+                    shouldNavigateToCart = true; // Navigate to cart after handling buy now
+                } catch (error) {
+                    console.error("Error parsing buy now item data:", error);
+                }
+            }
+
+            syncPromise = Promise.allSettled(syncTasks).then(results => {
+                const failedTasks = results.filter(r => r.status === 'rejected');
+                if (failedTasks.length > 0) {
+                    toast.error(`Có lỗi xảy ra khi đồng bộ ${failedTasks.length} sản phẩm. Vui lòng kiểm tra lại giỏ hàng.`, { id: toastId });
+                } else {
+                    toast.success("Đồng bộ giỏ hàng thành công!", { id: toastId });
+                }
+
+                // Clean up local storage
+                localStorage.removeItem('cart');
+                localStorage.removeItem('buyNowItem');
+
+                if (shouldNavigateToCart) {
+                    navigate('/cart');
+                }
+            });
+        }
+
+        await syncPromise;
+      }
+      // Update previous auth user state
+      prevAuthUser.current = authUser;
+    };
+
+    handleLoginSync();
+  }, [authUser, navigate]);
 
   useEffect(() => {
     const handleUnload = async () => {
@@ -105,8 +183,7 @@ export default function App() {
           <Route index path="/" element={<Home />} />
           
           {/* Product & Category Pages */}
-          <Route path="/category/:id" element={<Category />} />
-          <Route path="/category/:id/supplier/:supplierId" element={<CategoryWithSupplier />} />
+          {/*<Route path="/category" element={<Category />} />*/}
           <Route path="/product/:id" element={<Product />} />
           <Route path="/search" element={<SearchPage />} />
 
@@ -144,7 +221,6 @@ export default function App() {
           <Route path="/shipping-policy" element={<ShippingPolicy />} />
           
           {/* Category API Test Route */}
-          <Route path="/category-test" element={<CategoryTest />} />
         </Route>
 
         {/* Authentication Pages - No Layout */}

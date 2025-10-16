@@ -60,5 +60,10 @@ public class ProductFilterRequest {
     String material;
     Boolean isNew; // products created in last 30 days
     Boolean isBestSeller; // products with high sales
-    Double minRating;
+    Double minRating; // minimum average rating
+    // New aggregate filters (thresholds)
+    Integer minFavoriteCount; // minimum number of favorites
+    Integer minReviewCount; // minimum number of reviews
+    Integer minOrderCount; // minimum number of orders
+    Double minAverageRating; // minimum average rating (alias of minRating if provided)
 }

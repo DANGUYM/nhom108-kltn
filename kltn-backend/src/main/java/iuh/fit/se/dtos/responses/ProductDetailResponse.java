@@ -48,23 +48,19 @@ public class ProductDetailResponse {
     // Images
     List<String> imageUrls;
     String primaryImageUrl;
-    
-    // Rating and reviews
-    Double averageRating;
-    Integer totalReviews;
-    
+
     // Additional metadata
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Boolean isNew;
-    Boolean isBestSeller;
-    Boolean isFavorite; // for logged in users
     Integer favoriteCount;
+    Integer reviewCount;
+    Integer orderCount;
+    Double averageRating;
     
     // SEO and additional info
     String slug;
-    List<String> tags;
-    
+
     @Data
     @Builder
     @NoArgsConstructor

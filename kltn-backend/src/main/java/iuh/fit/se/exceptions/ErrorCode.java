@@ -116,14 +116,6 @@ public enum ErrorCode {
   // User related errors
   USER_NOT_EXISTED(1075, "User does not exist!", HttpStatus.NOT_FOUND),
 
-  // Product related error codes
-  //    PRODUCT_NOT_FOUND(1076, "Product not found!", HttpStatus.NOT_FOUND),
-  //    CATEGORY_NOT_FOUND(1077, "Category not found!", HttpStatus.NOT_FOUND),
-  //    BRAND_NOT_FOUND(1078, "Brand not found!", HttpStatus.NOT_FOUND),
-  //    SIZE_NOT_FOUND(1079, "Size not found!", HttpStatus.NOT_FOUND),
-  //    COLOR_NOT_FOUND(1080, "Color not found!", HttpStatus.NOT_FOUND),
-  //    PRODUCT_VARIANT_NOT_FOUND(1081, "Product variant not found!", HttpStatus.NOT_FOUND),
-  //    PRODUCT_OUT_OF_STOCK(1082, "Product is out of stock!", HttpStatus.BAD_REQUEST),
   INVALID_PRICE_RANGE(
       1083, "Invalid price range! Min price must be less than max price!", HttpStatus.BAD_REQUEST),
   INVALID_DISCOUNT_RANGE(

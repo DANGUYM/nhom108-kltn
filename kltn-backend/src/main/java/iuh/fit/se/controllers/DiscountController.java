@@ -39,8 +39,6 @@ public class DiscountController {
 
   IDiscountService discountService;
 
-  // CRUD Operations
-
   @PostMapping
   @Operation(
       summary = "Create new discount",
@@ -125,8 +123,6 @@ public class DiscountController {
         .message("Lấy danh sách discount thành công")
         .build();
   }
-
-  // Business Operations
 
   @GetMapping("/active")
   @Operation(
@@ -214,8 +210,6 @@ public class DiscountController {
         .build();
   }
 
-  // Product Discount Operations
-
   @PostMapping("/apply-to-products")
   @Operation(
       summary = "Apply discount to products",
@@ -290,8 +284,6 @@ public class DiscountController {
         .message("Lấy danh sách sản phẩm có discount thành công")
         .build();
   }
-
-  // Utility Operations
 
   @GetMapping("/{discountId}/active-status")
   @Operation(

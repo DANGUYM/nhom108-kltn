@@ -51,7 +51,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ isLoading: true });
       const response = await login(data);
 
-      const isAdmin = response?.roles.some((role) => role.name === "CUSTOMER");
+      const isAdmin = response?.roles.some((role) => role.name === "CUSTOMER" );
       if (!isAdmin) {
         return null;
       }

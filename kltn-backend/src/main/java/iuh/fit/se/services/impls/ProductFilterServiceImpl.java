@@ -1,4 +1,4 @@
-package iuh.fit.se.services.implementations;
+package iuh.fit.se.services.impls;
 
 import iuh.fit.se.dtos.requests.ProductFilterRequest;
 import iuh.fit.se.dtos.responses.ProductDetailResponse;
@@ -56,23 +56,105 @@ public class ProductFilterServiceImpl implements IProductFilterService {
             ? ProductStatus.valueOf(filterRequest.getStatus().toUpperCase()) 
             : null;
         
-        Page<Product> products = productRepository.findProductsWithComplexFilter(
-            categoryIds,
-            brandIds,
-            sizeIds,
-            colorIds,
-            filterRequest.getMinPrice(),
-            filterRequest.getMaxPrice(),
-            status,
-            filterRequest.getInStock(),
-            filterRequest.getHasDiscount(),
-            filterRequest.getKeyword(),
-            filterRequest.getMaterial(),
-            filterRequest.getIsFavorite(),
-            filterRequest.getUserId(),
-            filterRequest.getCategoryId(),
-            pageable
-        );
+        // Prepare additional params
+        LocalDateTime newSinceDate = LocalDateTime.now().minusDays(30);
+        Integer minFavoriteCount = filterRequest.getMinFavoriteCount();
+        Integer minReviewCount = filterRequest.getMinReviewCount();
+        Integer minOrderCount = filterRequest.getMinOrderCount();
+        Double minAverageRating = filterRequest.getMinAverageRating() != null ? filterRequest.getMinAverageRating() : filterRequest.getMinRating();
+
+        Page<Product> products;
+        String sortBy = filterRequest.getSortBy() != null ? filterRequest.getSortBy() : "id";
+        String sortDir = filterRequest.getSortDirection() != null ? filterRequest.getSortDirection() : "DESC";
+        boolean isAggregateSort = "favoriteCount".equalsIgnoreCase(sortBy)
+                || "reviewCount".equalsIgnoreCase(sortBy)
+                || "orderCount".equalsIgnoreCase(sortBy)
+                || "averageRating".equalsIgnoreCase(sortBy)
+                || "basePrice".equalsIgnoreCase(sortBy)
+                || "minPrice".equalsIgnoreCase(sortBy)
+                || "maxPrice".equalsIgnoreCase(sortBy)
+                || "currentDiscountPercent".equalsIgnoreCase(sortBy)
+                || "discountedPrice".equalsIgnoreCase(sortBy)
+                || "totalStock".equalsIgnoreCase(sortBy);
+
+        if (isAggregateSort) {
+            // Use custom ORDER BY with aggregates
+            if ("ASC".equalsIgnoreCase(sortDir)) {
+                products = productRepository.findProductsWithComplexFilterOrderByAggAsc(
+                    categoryIds,
+                    brandIds,
+                    sizeIds,
+                    colorIds,
+                    filterRequest.getMinPrice(),
+                    filterRequest.getMaxPrice(),
+                    status,
+                    filterRequest.getInStock(),
+                    filterRequest.getHasDiscount(),
+                    filterRequest.getKeyword(),
+                    filterRequest.getMaterial(),
+                    filterRequest.getIsFavorite(),
+                    filterRequest.getUserId(),
+                    filterRequest.getCategoryId(),
+                    filterRequest.getIsNew(),
+                    newSinceDate,
+                    minFavoriteCount,
+                    minReviewCount,
+                    minOrderCount,
+                    minAverageRating,
+                    sortBy,
+                    PageRequest.of(filterRequest.getPage(), filterRequest.getSize())
+                );
+            } else {
+                products = productRepository.findProductsWithComplexFilterOrderByAggDesc(
+                    categoryIds,
+                    brandIds,
+                    sizeIds,
+                    colorIds,
+                    filterRequest.getMinPrice(),
+                    filterRequest.getMaxPrice(),
+                    status,
+                    filterRequest.getInStock(),
+                    filterRequest.getHasDiscount(),
+                    filterRequest.getKeyword(),
+                    filterRequest.getMaterial(),
+                    filterRequest.getIsFavorite(),
+                    filterRequest.getUserId(),
+                    filterRequest.getCategoryId(),
+                    filterRequest.getIsNew(),
+                    newSinceDate,
+                    minFavoriteCount,
+                    minReviewCount,
+                    minOrderCount,
+                    minAverageRating,
+                    sortBy,
+                    PageRequest.of(filterRequest.getPage(), filterRequest.getSize())
+                );
+            }
+        } else {
+            products = productRepository.findProductsWithComplexFilter(
+                categoryIds,
+                brandIds,
+                sizeIds,
+                colorIds,
+                filterRequest.getMinPrice(),
+                filterRequest.getMaxPrice(),
+                status,
+                filterRequest.getInStock(),
+                filterRequest.getHasDiscount(),
+                filterRequest.getKeyword(),
+                filterRequest.getMaterial(),
+                filterRequest.getIsFavorite(),
+                filterRequest.getUserId(),
+                filterRequest.getCategoryId(),
+                filterRequest.getIsNew(),
+                newSinceDate,
+                minFavoriteCount,
+                minReviewCount,
+                minOrderCount,
+                minAverageRating,
+                pageable
+            );
+        }
 
         System.out.println("Filtered products count: " + products.getTotalElements());
         System.out.println("Filtered products count: " + products);
@@ -80,6 +162,16 @@ public class ProductFilterServiceImpl implements IProductFilterService {
         
         return products.map(productMapper::toProductDetailResponse);
     }
+
+
+    @Override
+    public ProductDetailResponse getProductDetailById(Long id) {
+        log.info("Getting product detail for ID: {}", id);
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        return productMapper.toProductDetailResponse(product);
+    }
+
 
     @Override
     public Page<ProductDetailResponse> getProductsByRootCategory(Long rootCategoryId, int page, int size, String sortBy, String sortDirection) {
@@ -206,6 +298,13 @@ public class ProductFilterServiceImpl implements IProductFilterService {
         // Use the same filter logic but count instead of paginate
         Pageable pageable = PageRequest.of(0, 1); // We only need count, not actual data
         
+        // Prepare additional params
+        LocalDateTime newSinceDate = LocalDateTime.now().minusDays(30);
+        Integer minFavoriteCount = filterRequest.getMinFavoriteCount();
+        Integer minReviewCount = filterRequest.getMinReviewCount();
+        Integer minOrderCount = filterRequest.getMinOrderCount();
+        Double minAverageRating = filterRequest.getMinAverageRating() != null ? filterRequest.getMinAverageRating() : filterRequest.getMinRating();
+
         Page<Product> products = productRepository.findProductsWithComplexFilter(
             filterRequest.getCategoryIds(),
             filterRequest.getBrandIds(),
@@ -223,6 +322,12 @@ public class ProductFilterServiceImpl implements IProductFilterService {
             filterRequest.getIsFavorite(),
             filterRequest.getUserId(),
             filterRequest.getCategoryId(),
+            filterRequest.getIsNew(),
+            newSinceDate,
+            minFavoriteCount,
+            minReviewCount,
+            minOrderCount,
+            minAverageRating,
             pageable
         );
         

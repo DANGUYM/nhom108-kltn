@@ -11,6 +11,8 @@ import iuh.fit.se.mapper.CartItemMapper;
 import iuh.fit.se.mapper.CartMapper;
 import iuh.fit.se.repositories.*;
 import iuh.fit.se.services.interfaces.ICartService;
+import iuh.fit.se.services.interfaces.IPriceService;
+
 import java.util.List;
 import java.util.Optional;
 import lombok.AccessLevel;
@@ -33,6 +35,7 @@ public class CartService implements ICartService {
   ProductVariantRepository productVariantRepository;
   CartMapper cartMapper;
   CartItemMapper cartItemMapper;
+  IPriceService priceService;
 
   @Override
   public CartResponse getUserCart(Long userId) {
@@ -119,7 +122,7 @@ public class CartService implements ICartService {
     CartItem savedItem = cartItemRepository.save(cartItem);
     log.info("Product added to cart successfully");
 
-    return cartItemMapper.toCartItemResponse(savedItem);
+    return cartItemMapper.toCartItemResponse(savedItem, priceService);
   }
 
   @Override
@@ -140,7 +143,7 @@ public class CartService implements ICartService {
     CartItem savedItem = cartItemRepository.save(cartItem);
 
     log.info("Cart item updated successfully");
-    return cartItemMapper.toCartItemResponse(savedItem);
+    return cartItemMapper.toCartItemResponse(savedItem, priceService);
   }
 
   @Override
@@ -180,7 +183,7 @@ public class CartService implements ICartService {
             .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
 
     List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
-    return cartItems.stream().map(cartItemMapper::toCartItemResponse).toList();
+    return cartItems.stream().map(cartItem -> cartItemMapper.toCartItemResponse(cartItem, priceService)).toList();
   }
 
   @Override
@@ -192,7 +195,10 @@ public class CartService implements ICartService {
       return 0.0;
     }
 
-    return cartItemRepository.calculateCartTotal(cart.getId());
+    List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+    return cartItems.stream()
+        .mapToDouble(item -> priceService.getFinalPrice(item.getProduct(), item.getProductVariant()) * item.getQuantity())
+        .sum();
   }
 
   @Override
@@ -219,7 +225,7 @@ public class CartService implements ICartService {
 
     // Set cart items
     List<CartItemResponse> cartItemResponses =
-        cartItems.stream().map(cartItemMapper::toCartItemResponse).toList();
+        cartItems.stream().map(cartItem -> cartItemMapper.toCartItemResponse(cartItem, priceService)).toList();
     response.setCartItems(cartItemResponses);
 
     // Calculate totals

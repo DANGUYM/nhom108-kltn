@@ -137,13 +137,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
           + "JOIN pv.product p WHERE p.status = 'ACTIVE'")
   Long getTotalStock();
 
-  // Complex filtering query with multiple criteria - Fixed version
   @Query(
-      "SELECT DISTINCT p FROM Product p "
+      "SELECT p FROM Product p "
           + "LEFT JOIN ProductVariant pv ON p.id = pv.product.id "
           + "LEFT JOIN ProductDiscount pd ON p.id = pd.product.id "
           + "LEFT JOIN Discount d ON pd.discount.id = d.id "
           + "LEFT JOIN Favorite f ON p.id = f.product.id "
+          + "LEFT JOIN Review r ON p.id = r.product.id "
+          + "LEFT JOIN OrderDetail od ON od.productVariant.product.id = p.id "
           + "LEFT JOIN p.category c "
           + "LEFT JOIN c.category parent "
           + "WHERE (:categoryIds IS NULL OR p.category.id IN :categoryIds) "
@@ -164,7 +165,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
           + "AND (:isFavorite IS NULL OR "
           + "     (:isFavorite = true AND f.id IS NOT NULL AND (:userId IS NULL OR f.user.id = :userId)) OR "
           + "     (:isFavorite = false)) "
-          + "AND (:rootCategoryId IS NULL OR parent.id = :rootCategoryId OR (parent IS NULL AND c.id = :rootCategoryId))")
+          + "AND ( :isNew IS NULL OR ( :isNew = true AND p.createdAt >= :newSinceDate ) OR ( :isNew = false AND p.createdAt < :newSinceDate ) ) "
+          + "AND (:rootCategoryId IS NULL OR parent.id = :rootCategoryId OR (parent IS NULL AND c.id = :rootCategoryId)) "
+          + "GROUP BY p "
+          + "HAVING ( :minFavoriteCount IS NULL OR COUNT(DISTINCT f) >= :minFavoriteCount ) "
+          + "AND ( :minReviewCount IS NULL OR COUNT(DISTINCT r) >= :minReviewCount ) "
+          + "AND ( :minOrderCount IS NULL OR COUNT(DISTINCT od) >= :minOrderCount ) "
+          + "AND ( :minAverageRating IS NULL OR COALESCE(AVG(r.rating),0) >= :minAverageRating )")
   Page<Product> findProductsWithComplexFilter(
       @Param("categoryIds") List<Long> categoryIds,
       @Param("brandIds") List<Long> brandIds,
@@ -180,5 +187,153 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
       @Param("isFavorite") Boolean isFavorite,
       @Param("userId") Long userId,
       @Param("rootCategoryId") Long rootCategoryId,
+      @Param("isNew") Boolean isNew,
+      @Param("newSinceDate") java.time.LocalDateTime newSinceDate,
+      @Param("minFavoriteCount") Integer minFavoriteCount,
+      @Param("minReviewCount") Integer minReviewCount,
+      @Param("minOrderCount") Integer minOrderCount,
+      @Param("minAverageRating") Double minAverageRating,
+      Pageable pageable);
+
+  @Query(
+      "SELECT p FROM Product p "
+          + "LEFT JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "LEFT JOIN ProductDiscount pd ON p.id = pd.product.id "
+          + "LEFT JOIN Discount d ON pd.discount.id = d.id "
+          + "LEFT JOIN Favorite f ON p.id = f.product.id "
+          + "LEFT JOIN Review r ON p.id = r.product.id "
+          + "LEFT JOIN OrderDetail od ON od.productVariant.product.id = p.id "
+          + "LEFT JOIN p.category c "
+          + "LEFT JOIN c.category parent "
+          + "WHERE (:categoryIds IS NULL OR p.category.id IN :categoryIds) "
+          + "AND (:brandIds IS NULL OR p.brand.id IN :brandIds) "
+          + "AND (:sizeIds IS NULL OR pv.size.id IN :sizeIds) "
+          + "AND (:colorIds IS NULL OR pv.color.id IN :colorIds) "
+          + "AND (:minPrice IS NULL OR p.basePrice >= :minPrice) "
+          + "AND (:maxPrice IS NULL OR p.basePrice <= :maxPrice) "
+          + "AND (:status IS NULL OR p.status = :status) "
+          + "AND (:inStock IS NULL OR "
+          + "     (:inStock = true AND pv.stockQuantity > 0) OR "
+          + "     (:inStock = false)) "
+          + "AND (:hasDiscount IS NULL OR "
+          + "     (:hasDiscount = true AND d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP) OR "
+          + "     (:hasDiscount = false)) "
+          + "AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+          + "AND (:material IS NULL OR LOWER(pv.material) LIKE LOWER(CONCAT('%', :material, '%'))) "
+          + "AND (:isFavorite IS NULL OR "
+          + "     (:isFavorite = true AND f.id IS NOT NULL AND (:userId IS NULL OR f.user.id = :userId)) OR "
+          + "     (:isFavorite = false)) "
+          + "AND ( :isNew IS NULL OR ( :isNew = true AND p.createdAt >= :newSinceDate ) OR ( :isNew = false AND p.createdAt < :newSinceDate ) ) "
+          + "AND (:rootCategoryId IS NULL OR parent.id = :rootCategoryId OR (parent IS NULL AND c.id = :rootCategoryId)) "
+          + "GROUP BY p "
+          + "HAVING ( :minFavoriteCount IS NULL OR COUNT(DISTINCT f) >= :minFavoriteCount ) "
+          + "AND ( :minReviewCount IS NULL OR COUNT(DISTINCT r) >= :minReviewCount ) "
+          + "AND ( :minOrderCount IS NULL OR COUNT(DISTINCT od) >= :minOrderCount ) "
+          + "AND ( :minAverageRating IS NULL OR COALESCE(AVG(r.rating),0) >= :minAverageRating ) "
+          + "ORDER BY CASE "
+          + "  WHEN :sortBy = 'favoriteCount' THEN COUNT(DISTINCT f) "
+          + "  WHEN :sortBy = 'reviewCount' THEN COUNT(DISTINCT r) "
+          + "  WHEN :sortBy = 'orderCount' THEN COUNT(DISTINCT od) "
+          + "  WHEN :sortBy = 'averageRating' THEN COALESCE(AVG(r.rating),0) "
+          + "  WHEN :sortBy = 'basePrice' THEN p.basePrice "
+          + "  WHEN :sortBy = 'minPrice' THEN COALESCE(MIN(pv.price), p.basePrice) "
+          + "  WHEN :sortBy = 'maxPrice' THEN COALESCE(MAX(pv.price), p.basePrice) "
+          + "  WHEN :sortBy = 'currentDiscountPercent' THEN COALESCE(MAX(CASE WHEN d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP THEN d.value ELSE 0 END), 0) "
+          + "  WHEN :sortBy = 'discountedPrice' THEN (COALESCE(MIN(pv.price), p.basePrice) * (1 - COALESCE(MAX(CASE WHEN d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP THEN d.value ELSE 0 END), 0) / 100)) "
+          + "  WHEN :sortBy = 'totalStock' THEN COALESCE(SUM(CASE WHEN pv.stockQuantity IS NOT NULL THEN pv.stockQuantity ELSE 0 END), 0) "
+          + "  ELSE p.id END ASC")
+  Page<Product> findProductsWithComplexFilterOrderByAggAsc(
+      @Param("categoryIds") List<Long> categoryIds,
+      @Param("brandIds") List<Long> brandIds,
+      @Param("sizeIds") List<Long> sizeIds,
+      @Param("colorIds") List<Long> colorIds,
+      @Param("minPrice") Double minPrice,
+      @Param("maxPrice") Double maxPrice,
+      @Param("status") ProductStatus status,
+      @Param("inStock") Boolean inStock,
+      @Param("hasDiscount") Boolean hasDiscount,
+      @Param("keyword") String keyword,
+      @Param("material") String material,
+      @Param("isFavorite") Boolean isFavorite,
+      @Param("userId") Long userId,
+      @Param("rootCategoryId") Long rootCategoryId,
+      @Param("isNew") Boolean isNew,
+      @Param("newSinceDate") java.time.LocalDateTime newSinceDate,
+      @Param("minFavoriteCount") Integer minFavoriteCount,
+      @Param("minReviewCount") Integer minReviewCount,
+      @Param("minOrderCount") Integer minOrderCount,
+      @Param("minAverageRating") Double minAverageRating,
+      @Param("sortBy") String sortBy,
+      Pageable pageable);
+
+  @Query(
+      "SELECT p FROM Product p "
+          + "LEFT JOIN ProductVariant pv ON p.id = pv.product.id "
+          + "LEFT JOIN ProductDiscount pd ON p.id = pd.product.id "
+          + "LEFT JOIN Discount d ON pd.discount.id = d.id "
+          + "LEFT JOIN Favorite f ON p.id = f.product.id "
+          + "LEFT JOIN Review r ON p.id = r.product.id "
+          + "LEFT JOIN OrderDetail od ON od.productVariant.product.id = p.id "
+          + "LEFT JOIN p.category c "
+          + "LEFT JOIN c.category parent "
+          + "WHERE (:categoryIds IS NULL OR p.category.id IN :categoryIds) "
+          + "AND (:brandIds IS NULL OR p.brand.id IN :brandIds) "
+          + "AND (:sizeIds IS NULL OR pv.size.id IN :sizeIds) "
+          + "AND (:colorIds IS NULL OR pv.color.id IN :colorIds) "
+          + "AND (:minPrice IS NULL OR p.basePrice >= :minPrice) "
+          + "AND (:maxPrice IS NULL OR p.basePrice <= :maxPrice) "
+          + "AND (:status IS NULL OR p.status = :status) "
+          + "AND (:inStock IS NULL OR "
+          + "     (:inStock = true AND pv.stockQuantity > 0) OR "
+          + "     (:inStock = false)) "
+          + "AND (:hasDiscount IS NULL OR "
+          + "     (:hasDiscount = true AND d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP) OR "
+          + "     (:hasDiscount = false)) "
+          + "AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+          + "AND (:material IS NULL OR LOWER(pv.material) LIKE LOWER(CONCAT('%', :material, '%'))) "
+          + "AND (:isFavorite IS NULL OR "
+          + "     (:isFavorite = true AND f.id IS NOT NULL AND (:userId IS NULL OR f.user.id = :userId)) OR "
+          + "     (:isFavorite = false)) "
+          + "AND ( :isNew IS NULL OR ( :isNew = true AND p.createdAt >= :newSinceDate ) OR ( :isNew = false AND p.createdAt < :newSinceDate ) ) "
+          + "AND (:rootCategoryId IS NULL OR parent.id = :rootCategoryId OR (parent IS NULL AND c.id = :rootCategoryId)) "
+          + "GROUP BY p "
+          + "HAVING ( :minFavoriteCount IS NULL OR COUNT(DISTINCT f) >= :minFavoriteCount ) "
+          + "AND ( :minOrderCount IS NULL OR COUNT(DISTINCT od) >= :minOrderCount ) "
+          + "AND ( :minAverageRating IS NULL OR COALESCE(AVG(r.rating),0) >= :minAverageRating ) "
+              + "AND ( :minReviewCount IS NULL OR COUNT(DISTINCT r) >= :minReviewCount ) "
+              + "ORDER BY CASE "
+          + "  WHEN :sortBy = 'favoriteCount' THEN COUNT(DISTINCT f) "
+              + "  WHEN :sortBy = 'reviewCount' THEN COUNT(DISTINCT r) "
+              + "  WHEN :sortBy = 'orderCount' THEN COUNT(DISTINCT od) "
+          + "  WHEN :sortBy = 'averageRating' THEN COALESCE(AVG(r.rating),0) "
+          + "  WHEN :sortBy = 'basePrice' THEN p.basePrice "
+          + "  WHEN :sortBy = 'minPrice' THEN COALESCE(MIN(pv.price), p.basePrice) "
+          + "  WHEN :sortBy = 'maxPrice' THEN COALESCE(MAX(pv.price), p.basePrice) "
+          + "  WHEN :sortBy = 'currentDiscountPercent' THEN COALESCE(MAX(CASE WHEN d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP THEN d.value ELSE 0 END), 0) "
+          + "  WHEN :sortBy = 'discountedPrice' THEN (COALESCE(MIN(pv.price), p.basePrice) * (1 - COALESCE(MAX(CASE WHEN d.startDate <= CURRENT_TIMESTAMP AND d.endDate >= CURRENT_TIMESTAMP THEN d.value ELSE 0 END), 0) / 100)) "
+          + "  WHEN :sortBy = 'totalStock' THEN COALESCE(SUM(CASE WHEN pv.stockQuantity IS NOT NULL THEN pv.stockQuantity ELSE 0 END), 0) "
+          + "  ELSE p.id END DESC")
+  Page<Product> findProductsWithComplexFilterOrderByAggDesc(
+      @Param("categoryIds") List<Long> categoryIds,
+      @Param("brandIds") List<Long> brandIds,
+      @Param("sizeIds") List<Long> sizeIds,
+      @Param("colorIds") List<Long> colorIds,
+      @Param("minPrice") Double minPrice,
+      @Param("maxPrice") Double maxPrice,
+      @Param("status") ProductStatus status,
+      @Param("inStock") Boolean inStock,
+      @Param("hasDiscount") Boolean hasDiscount,
+      @Param("keyword") String keyword,
+      @Param("material") String material,
+      @Param("isFavorite") Boolean isFavorite,
+      @Param("userId") Long userId,
+      @Param("rootCategoryId") Long rootCategoryId,
+      @Param("isNew") Boolean isNew,
+      @Param("newSinceDate") java.time.LocalDateTime newSinceDate,
+      @Param("minFavoriteCount") Integer minFavoriteCount,
+      @Param("minReviewCount") Integer minReviewCount,
+      @Param("minOrderCount") Integer minOrderCount,
+      @Param("minAverageRating") Double minAverageRating,
+      @Param("sortBy") String sortBy,
       Pageable pageable);
 }

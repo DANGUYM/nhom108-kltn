@@ -59,7 +59,7 @@ export default function UserDropdown() {
       >
         <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
           <img 
-            src={authUser?.avatar_url || "/images/user/7309681.jpg"} 
+            src={authUser?.avatar_url || "/logo_v4.png"} 
             alt={authUser ? "User Avatar" : "Guest"} 
           />
         </span>

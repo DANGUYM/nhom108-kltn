@@ -16,22 +16,18 @@ import org.springframework.stereotype.Repository;
 public interface ProductDiscountRepository
     extends JpaRepository<ProductDiscount, ProductDiscountId> {
 
-  // Tìm tất cả discount của một product
   @Query("SELECT pd FROM ProductDiscount pd WHERE pd.product.id = :productId")
   List<ProductDiscount> findByProductId(@Param("productId") Long productId);
 
-  // Tìm tất cả product có discount cụ thể
   @Query("SELECT pd FROM ProductDiscount pd WHERE pd.discount.id = :discountId")
   List<ProductDiscount> findByDiscountId(@Param("discountId") Long discountId);
 
-  // Tìm discount đang hoạt động cho một product
   @Query(
       "SELECT pd FROM ProductDiscount pd WHERE pd.product.id = :productId "
           + "AND pd.discount.startDate <= :now AND pd.discount.endDate >= :now")
   List<ProductDiscount> findActiveDiscountsByProductId(
       @Param("productId") Long productId, @Param("now") LocalDateTime now);
 
-  // Tìm discount đang hoạt động cho một product (trả về Optional)
   @Query("SELECT pd FROM ProductDiscount pd WHERE pd.product.id = :productId " +
          "AND pd.discount.startDate <= CURRENT_TIMESTAMP AND pd.discount.endDate >= CURRENT_TIMESTAMP " +
          "ORDER BY pd.discount.value DESC")

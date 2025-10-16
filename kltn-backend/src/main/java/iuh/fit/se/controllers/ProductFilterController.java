@@ -55,6 +55,23 @@ public class ProductFilterController {
             .build();
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Get product detail by ID")
+    public APIResponse<ProductDetailResponse> getProductDetailById(
+            @Parameter(description = "Product ID") @PathVariable Long id) {
+
+        log.info("Getting product detail for ID: {}", id);
+
+        ProductDetailResponse response = productFilterService.getProductDetailById(id);
+
+        return APIResponse.<ProductDetailResponse>builder()
+                .result(response)
+                .message("Product detail retrieved successfully")
+                .code(HttpStatus.OK.value())
+                .build();
+    }
+
+
     @GetMapping("/root-category/{categoryId}")
     @Operation(summary = "Get products by root category")
     public APIResponse<Page<ProductDetailResponse>> getProductsByRootCategory(
