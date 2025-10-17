@@ -44,13 +44,19 @@ const navItems: NavItem[] = [
   {
     name: "Forms",
     icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }, { name: "Products", path: "/products", pro: false }, { name: "ProductVariants", path: "/products-variants", pro: false }],
-
+    subItems: [
+        { name: "Form Elements", path: "/forms/form-elements", pro: false }, 
+        { name: "Products", path: "/forms/products", pro: false }, 
+        { name: "ProductVariants", path: "/forms/products-variants", pro: false }
+    ],
   },
   {
     name: "Tables",
     icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }, { name: "Category Product List", path: "/category-product-list", pro: false }],
+    subItems: [
+        { name: "Basic Tables", path: "/tables/basic-tables", pro: false }, 
+        { name: "Category Product List", path: "/tables/category-product-list", pro: false }
+    ],
   },
   {
     name: "Pages",
@@ -67,20 +73,20 @@ const othersItems: NavItem[] = [
     icon: <PieChartIcon />,
     name: "Charts",
     subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
+      { name: "Line Chart", path: "/charts/line-chart", pro: false },
+      { name: "Bar Chart", path: "/charts/bar-chart", pro: false },
     ],
   },
   {
     icon: <BoxCubeIcon />,
     name: "UI Elements",
     subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
+      { name: "Alerts", path: "/ui/alerts", pro: false },
+      { name: "Avatar", path: "/ui/avatars", pro: false },
+      { name: "Badge", path: "/ui/badge", pro: false },
+      { name: "Buttons", path: "/ui/buttons", pro: false },
+      { name: "Images", path: "/ui/images", pro: false },
+      { name: "Videos", path: "/ui/videos", pro: false },
     ],
   },
   {
@@ -106,9 +112,13 @@ const AppSidebar: React.FC = () => {
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // const isActive = (path: string) => location.pathname === path;
   const isActive = useCallback(
-    (path: string) => location.pathname === path,
+    (path: string) => {
+        // Handle index route explicitly
+        if (path === '/') return location.pathname === path;
+        // Check if the current path starts with the given path
+        return location.pathname.startsWith(path);
+    },
     [location.pathname]
   );
 
@@ -132,7 +142,8 @@ const AppSidebar: React.FC = () => {
     });
 
     if (!submenuMatched) {
-      setOpenSubmenu(null);
+      // Do not close submenu if a page without a menu item is active
+      // setOpenSubmenu(null);
     }
   }, [location, isActive]);
 

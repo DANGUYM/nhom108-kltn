@@ -2,12 +2,12 @@
 // src/services/productService.ts
 
 import axiosInstance from "../lib/axios";
-import { Product, PaginatedProductResponse, ProductDetail } from "@/types/product";
+import { Product, PaginatedProductResponse, ProductDetailResponse } from "@/types/product"; // Import the new type
 
-interface ApiErrorResponse {
+interface ApiResponse<T> {
     code: number;
     message: string;
-    details?: any;
+    result: T;
 }
 
 interface FilterPayload {
@@ -31,85 +31,49 @@ interface FilterPayload {
     isNew?: boolean;
 }
 
-/**
- * Creates a new product.
- * @param formData - The product data.
- * @returns Promise<Product>
- */
 export const createProduct = async (formData: FormData): Promise<Product> => {
     try {
-        const response = await axiosInstance.post<{ code: number; message: string; result: Product }>("/products", formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+        const response = await axiosInstance.post<ApiResponse<Product>>("/products", formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
         });
-
-        if (response.data.code === 201) { // Typically, 201 is for creation
+        if (response.data.code === 201) {
             return response.data.result;
         } else {
             throw new Error(response.data.message || "Failed to create product");
         }
     } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || "Network error: Unable to create product";
         console.error("Error creating product:", error);
-
-        if (error.response?.data) {
-            const errorData = error.response.data as ApiErrorResponse;
-            throw new Error(errorData.message || "Failed to create product");
-        }
-
-        throw new Error("Network error: Unable to create product");
+        throw new Error(errorMessage);
     }
 };
 
-
-/**
- * Fetches products based on a filter payload.
- * @param payload - The filter criteria.
- * @returns Promise<PaginatedProductResponse>
- */
 export const filterProducts = async (payload: FilterPayload): Promise<PaginatedProductResponse> => {
     try {
-        const response = await axiosInstance.post<{ code: number; message: string; result: PaginatedProductResponse }>("/products/filter", payload);
-
+        const response = await axiosInstance.post<ApiResponse<PaginatedProductResponse>>("/products/filter", payload);
         if (response.data.code === 200) {
             return response.data.result;
         } else {
             throw new Error(response.data.message || "Failed to fetch products");
         }
     } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || "Network error: Unable to fetch products";
         console.error("Error fetching products:", error);
-
-        if (error.response?.data) {
-            const errorData = error.response.data as ApiErrorResponse;
-            throw new Error(errorData.message || "Failed to fetch products");
-        }
-
-        throw new Error("Network error: Unable to fetch products");
+        throw new Error(errorMessage);
     }
 };
 
-/**
- * Fetches all products for selection.
- * @returns Promise<Product[]>
- */
 export const getAllProductsForSelect = async (): Promise<Product[]> => {
     try {
-        // Fetching with a large size to get all products for a select dropdown
         const payload: FilterPayload = { page: 0, size: 1000 }; 
         const paginatedResponse = await filterProducts(payload);
         return paginatedResponse.content;
     } catch (error) {
         console.error("Error fetching all products for select:", error);
-        throw error; // Re-throw the error to be handled by the caller
+        throw error;
     }
 };
 
-
-/**
- * Get Flash Sale products, sorted by the highest discount.
- * @param size - Number of products to fetch.
- * @returns Promise<Product[]>
- */
 export const getFlashSaleProducts = async (size: number = 10): Promise<Product[]> => {
     const payload: FilterPayload = {
         hasDiscount: true,
@@ -118,16 +82,10 @@ export const getFlashSaleProducts = async (size: number = 10): Promise<Product[]
         page: 0,
         size: size,
     };
-
     const paginatedResponse = await filterProducts(payload);
     return paginatedResponse.content;
 };
 
-/**
- * Get Newest products (isNew=true), sorted by createdAt desc.
- * @param size - Number of products to fetch.
- * @returns Promise<Product[]>
- */
 export const getNewestProducts = async (size: number = 10): Promise<Product[]> => {
     const payload: FilterPayload = {
         isNew: true,
@@ -136,33 +94,54 @@ export const getNewestProducts = async (size: number = 10): Promise<Product[]> =
         page: 0,
         size: size,
     };
-
     const paginatedResponse = await filterProducts(payload);
     return paginatedResponse.content;
 };
 
-/**
- * Fetches a single product by its ID.
- * @param id - The ID of the product.
- * @returns Promise<ProductDetail>
- */
-export const getProductById = async (id: number): Promise<ProductDetail> => {
+// Updated to use the new response type
+export const getProductById = async (id: number): Promise<ProductDetailResponse> => {
     try {
-        const response = await axiosInstance.get<{ code: number; message: string; result: ProductDetail }>(`/products/filter/${id}`);
-
+        const response = await axiosInstance.get<ApiResponse<ProductDetailResponse>>(`/products/${id}`);
         if (response.data.code === 200) {
             return response.data.result;
         } else {
             throw new Error(response.data.message || "Failed to fetch product detail");
         }
     } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || "Network error: Unable to fetch product detail";
         console.error(`Error fetching product with id ${id}:`, error);
-
-        if (error.response?.data) {
-            const errorData = error.response.data as ApiErrorResponse;
-            throw new Error(errorData.message || "Failed to fetch product detail");
-        }
-
-        throw new Error("Network error: Unable to fetch product detail");
+        throw new Error(errorMessage);
     }
 };
+
+// The update function might return a different shape, let's assume it returns the detailed view for now
+export const updateProduct = async (id: number, formData: FormData): Promise<ProductDetailResponse> => {
+    try {
+        const response = await axiosInstance.put<ApiResponse<ProductDetailResponse>>(`/products/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        if (response.data.code === 200) {
+            return response.data.result;
+        } else {
+            throw new Error(response.data.message || "Failed to update product");
+        }
+    } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || "Network error: Unable to update product";
+        console.error(`Error updating product with id ${id}:`, error);
+        throw new Error(errorMessage);
+    }
+};
+
+export const deleteProduct = async (id: number): Promise<void> => {
+    try {
+        const response = await axiosInstance.delete<ApiResponse<null>>(`/products/${id}`);
+        if (response.data.code !== 200) {
+            throw new Error(response.data.message || "Failed to delete product");
+        }
+    } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || "Network error: Unable to delete product";
+        console.error(`Error deleting product with id ${id}:`, error);
+        throw new Error(errorMessage);
+    }
+};
+

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
@@ -6,21 +5,11 @@ import { getAllProductsForSelect } from '../../services/productService';
 import { createProductVariant } from '../../services/productVariantService';
 import { Product } from '@/types/product';
 
-const mockColors = [
-    { id: 1, name: 'Đỏ' }, { id: 2, name: 'Xanh dương' }, { id: 3, name: 'Xanh lá' }, 
-    { id: 4, name: 'Đen' }, { id: 5, name: 'Trắng' }, { id: 6, name: 'Xám' }, 
-    { id: 7, name: 'Hồng' }, { id: 8, name: 'Vàng' }, { id: 9, name: 'Nâu' }, 
-    { id: 10, name: 'Tím' }, { id: 11, name: 'Cam' }, { id: 12, name: 'Be' }, 
-    { id: 13, name: 'Xanh navy' }, { id: 14, name: 'Xanh mint' }, { id: 15, name: 'Hồng pastel' }
-];
+import { Color } from "@/types/color";
+import { Size } from "@/types/size";
+import { getColors, getSizes } from "@/services/filterService";
 
-const mockSizes = [
-    { id: 1, name: 'XS' }, { id: 2, name: 'S' }, { id: 3, name: 'M' }, 
-    { id: 4, name: 'L' }, { id: 5, name: 'XL' }, { id: 6, name: 'XXL' }, 
-    { id: 7, name: 'XXXL' }, { id: 8, name: 'Free Size' }, { id: 9, name: '38' }, 
-    { id: 10, name: '39' }, { id: 11, name: '40' }, { id: 12, name: '41' }, 
-    { id: 13, name: '42' }, { id: 14, name: '43' }, { id: 15, name: '44' }
-];
+
 
 // Updated helper to robustly remove diacritics for SKU
 const toSkuString = (str: string | undefined): string => {
@@ -53,6 +42,9 @@ export default function AddProductVariantForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+    const [colors, setColors] = useState<Color[]>([]);
+    const [sizes, setSizes] = useState<Size[]>([]);
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -66,12 +58,29 @@ export default function AddProductVariantForm() {
     fetchProducts();
   }, []);
 
+    useEffect(() => {
+        const fetchFilterData = async () => {
+            try {
+                const [ colorsData, sizesData] = await Promise.all([
+                    getColors(),
+                    getSizes()
+                ]);
+                setColors(colorsData);
+                setSizes(sizesData);
+            } catch (error) {
+                console.error("Failed to fetch filter data:", error);
+                toast.error("Không thể tải dữ liệu bộ lọc.");
+            }
+        };
+        fetchFilterData();
+    }, []);
+
   // Auto-generate SKU based on the specified format
   useEffect(() => {
     if (productId && colorId && sizeId) {
       const product = products.find(p => p.id === productId);
-      const color = mockColors.find(c => c.id === colorId);
-      const size = mockSizes.find(s => s.id === sizeId);
+      const color = colors.find(c => c.id === colorId);
+      const size = sizes.find(s => s.id === sizeId);
 
       if (product && color && size) {
         const subCatName = toSkuString(product.category.name);
@@ -127,6 +136,11 @@ export default function AddProductVariantForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Xóa file khỏi imageFile
+  const handleDeleteImageFile = () => {
+    setImageFile(null);
   };
 
   return (
@@ -229,7 +243,7 @@ export default function AddProductVariantForm() {
                 required
               >
                 <option value="">Select Color</option>
-                {mockColors.map(c => (
+                {colors.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -245,33 +259,50 @@ export default function AddProductVariantForm() {
                 required
               >
                 <option value="">Select Size</option>
-                {mockSizes.map(s => (
+                {sizes.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4.5">
             <label className="mb-2.5 block text-black dark:text-white">
               Variant Image <span className="text-meta-1">*</span>
             </label>
             <input
               type="file"
-              onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full rounded-md border border-stroke p-3 outline-none transition file:mr-4 file:rounded file:border-[0.5px] file:border-stroke file:bg-[#EEEEEE] file:py-1 file:px-2.5 file:text-sm file:font-medium focus:border-primary file:focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:file:border-strokedark dark:file:bg-white/30 dark:file:text-white"
+              accept="image/*"
+              onChange={e => {
+                if (e.target.files && e.target.files[0]) {
+                  setImageFile(e.target.files[0]);
+                }
+              }}
+              className="mb-2"
               required
             />
-            {imageFile && <div className="mt-2">{imageFile.name}</div>}
+            {imageFile && (
+              <div className="relative group flex gap-4">
+                <img src={URL.createObjectURL(imageFile)} alt="Preview" style={{ maxWidth: 120, borderRadius: 8 }} />
+                <button
+                  type="button"
+                  onClick={handleDeleteImageFile}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100"
+                  title="Xóa ảnh"
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
 
-          <button
-            type="submit"
-            className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray"
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : 'Create Variant'}
-          </button>
+            <button
+                type="submit"
+                className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:text-yellow-300"
+                disabled={loading}
+            >
+                {loading ? 'Creating...' : 'Create Variant'}
+            </button>
         </form>
       </div>
     </div>

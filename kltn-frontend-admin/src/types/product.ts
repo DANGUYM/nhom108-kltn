@@ -1,12 +1,15 @@
 
 // src/types/product.ts
 
+// --- ORIGINAL TYPES (Restored) ---
+
 export interface Category {
     id: number;
     name: string;
     description?: string;
     parentId?: number;
     parentName?: string;
+    parentCategory?: Category; // For nested structures
 }
 
 export interface Brand {
@@ -73,7 +76,7 @@ export interface Product {
     slug: string;
 }
 
-export type ProductDetail = Product;
+export type ProductDetail = Product; // Keep original alias for backward compatibility
 
 export interface PaginatedProductResponse {
     content: Product[];
@@ -82,4 +85,40 @@ export interface PaginatedProductResponse {
     totalElements: number;
     totalPages: number;
     last: boolean;
+}
+
+// --- NEW TYPES FOR DETAIL PAGE ---
+
+export interface Image {
+    id: number;
+    imageUrl: string;
+    isMain: boolean;
+    sortOrder: number;
+}
+
+export interface ProductVariant {
+    id: number;
+    sku: string;
+    price: number;
+    stockQuantity: number;
+    material: string;
+    imageUrl: string;
+    size: Size;
+    color: Color;
+    inStock?: boolean;
+    images?: Image[];
+}
+
+export interface ProductDetailResponse {
+    id: number;
+    name: string;
+    description: string;
+    basePrice: number;
+    status: string;
+    category: Category;
+    brand: Brand;
+    images: Image[];
+    variants: ProductVariant[];
+    averageRating: number;
+    reviewCount: number; // Changed from totalReviews to match Product type
 }

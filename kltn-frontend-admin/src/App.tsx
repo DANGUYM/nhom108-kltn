@@ -25,7 +25,8 @@ import FormElements from "./pages/Forms/FormElements";
 import Products from "./pages/Forms/Products.tsx";
 import ProductVariants from "./pages/Forms/ProductVariants.tsx";
 import CategoryProductList from "./pages/Tables/CategoryProductList.tsx";
-
+import ProductList from "./pages/Tables/ProductList.tsx";
+import EditVariant from "./pages/Tables/EditVariant.tsx";
 
 import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
@@ -92,64 +93,69 @@ export default function App() {
 
             {/* Forms */}
             <Route
-              path="/form-elements"
+              path="/forms/form-elements"
               element={authUser ? <FormElements /> : <Navigate to="/signin" />}
             />
-              <Route
-                  path="/products"
-                  element={authUser ? <Products /> : <Navigate to="/signin" />}
-              />
-
-              {/* Forms */}
-              <Route
-                  path="/products-variants"
-                  element={authUser ? <ProductVariants /> : <Navigate to="/signin" />}
-              />
+            <Route
+                path="/forms/products"
+                element={authUser ? <Products /> : <Navigate to="/signin" />}
+            />
+            <Route
+                path="/forms/products-variants"
+                element={authUser ? <ProductVariants /> : <Navigate to="/signin" />}
+            />
 
             {/* Tables */}
             <Route
-              path="/category-product-list"
+              path="/tables/category-product-list"
               element={authUser ? <CategoryProductList /> : <Navigate to="/signin" />}
             />
-
-              <Route
-                  path="/basic-tables"
-                  element={authUser ? <BasicTables /> : <Navigate to="/signin" />}
-              />
+            <Route
+                path="/tables/product-list/:id"
+                element={authUser ? <ProductList /> : <Navigate to="/signin" />}
+            />
+            <Route
+                path="/tables/basic-tables"
+                element={authUser ? <BasicTables /> : <Navigate to="/signin" />}
+            />
+            <Route
+                path="/tables/edit-variant/:variantId"
+                element={authUser ? <EditVariant /> : <Navigate to="/signin" />}
+            />
 
             {/* Ui Elements */}
             <Route
-              path="/alerts"
+              path="/ui/alerts"
               element={authUser ? <Alerts /> : <Navigate to="/signin" />}
             />
             <Route
-              path="/avatars"
+              path="/ui/avatars"
               element={authUser ? <Avatars /> : <Navigate to="/signin" />}
             />
             <Route
-              path="/badge"
+              path="/ui/badge"
               element={authUser ? <Badges /> : <Navigate to="/signin" />}
             />
             <Route
-              path="/buttons"
+              path="/ui/buttons"
               element={authUser ? <Buttons /> : <Navigate to="/signin" />}
             />
             <Route
-              path="/images"
+              path="/ui/images"
               element={authUser ? <Images /> : <Navigate to="/signin" />}
             />
             <Route
-              path="/videos"
+              path="/ui/videos"
               element={authUser ? <Videos /> : <Navigate to="/signin" />}
             />
 
             {/* Charts */}
             <Route
-              path="/line-chart"
+              path="/charts/line-chart"
               element={authUser ? <LineChart /> : <Navigate to="/signin" />}
             />
             <Route
-              path="/bar-chart"
+              path="/charts/bar-chart"
               element={authUser ? <BarChart /> : <Navigate to="/signin" />}
             />
           </Route>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
@@ -6,14 +5,9 @@ import { getCachedRootCategories, getSubCategories } from '../../services/catego
 import { createProduct } from '../../services/productService';
 import { CategoryResponse } from '@/types/responses/categoryResponse';
 
-const mockBrands = [
-    { id: 1, name: 'Nike' }, { id: 2, name: 'Adidas' }, { id: 3, name: 'Puma' },
-    { id: 4, name: 'Zara' }, { id: 5, name: 'H&M' }, { id: 6, name: 'Uniqlo' },
-    { id: 7, name: 'Coolmate' }, { id: 8, name: 'Yame' }, { id: 9, name: 'Calvin Klein' },
-    { id: 10, name: 'Tommy Hilfiger' }, { id: 11, name: 'Polo Ralph Lauren' },
-    { id: 12, name: 'Lacoste' }, { id: 13, name: 'Converse' }, { id: 14, name: 'Vans' },
-    { id: 15, name: 'Local Brand' }
-];
+import { getBrands } from "@/services/filterService";
+import { Brand } from "@/types/brand";
+
 
 export default function AddProductForm() {
   const [productName, setProductName] = useState('');
@@ -26,6 +20,10 @@ export default function AddProductForm() {
   const [subCategories, setSubCategories] = useState<CategoryResponse[]>([]);
   const [selectedRootCategoryId, setSelectedRootCategoryId] = useState<number | ''>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<number | ''>('');
+
+
+    const [brands, setBrands] = useState<Brand[]>([]);
+
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +42,24 @@ export default function AddProductForm() {
     };
     fetchRootCategories();
   }, []);
+
+    useEffect(() => {
+        const fetchFilterData = async () => {
+            try {
+                const [brandsData] = await Promise.all([
+                    getBrands(),
+
+                ]);
+                setBrands(brandsData);
+
+            } catch (error) {
+                console.error("Failed to fetch filter data:", error);
+                toast.error("Không thể tải dữ liệu bộ lọc.");
+            }
+        };
+        fetchFilterData();
+    }, []);
+
 
   // Fetch sub-categories when a root category is selected
   useEffect(() => {
@@ -104,6 +120,11 @@ export default function AddProductForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Xóa file khỏi danh sách images
+  const handleDeleteImageFile = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -197,7 +218,7 @@ export default function AddProductForm() {
               required
             >
               <option value="">Select Brand</option>
-              {mockBrands.map(brand => (
+              {brands.map(brand => (
                 <option key={brand.id} value={brand.id}>{brand.name}</option>
               ))}
             </select>
@@ -216,30 +237,50 @@ export default function AddProductForm() {
             ></textarea>
           </div>
           
-          <div className="mb-6">
+          <div className="mb-4.5">
             <label className="mb-2.5 block text-black dark:text-white">
               Product Images <span className="text-meta-1">*</span>
             </label>
             <input
               type="file"
               multiple
-              onChange={(e) => setImages(Array.from(e.target.files || []))}
-              className="w-full rounded-md border border-stroke p-3 outline-none transition file:mr-4 file:rounded file:border-[0.5px] file:border-stroke file:bg-[#EEEEEE] file:py-1 file:px-2.5 file:text-sm file:font-medium focus:border-primary file:focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:file:border-strokedark dark:file:bg-white/30 dark:file:text-white"
+              accept="image/*"
+              onChange={e => {
+                if (e.target.files) {
+                  setImages(Array.from(e.target.files));
+                }
+              }}
+              className="mb-2"
+              required
             />
-             <div>
-                {images.map((file, index) => (
-                  <div key={index}>{file.name}</div>
-                ))}
+            <div className="flex flex-wrap gap-4">
+              {images.map((file, idx) => {
+                const url = URL.createObjectURL(file);
+                return (
+                  <div key={url} className="relative group">
+                    <img src={url} alt={`Preview ${idx + 1}`} style={{ maxWidth: 120, borderRadius: 8 }} />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteImageFile(idx)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100"
+                      title="Xóa ảnh"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray"
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : 'Create Product'}
-          </button>
+            <button
+                type="submit"
+                className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:text-yellow-300"
+                disabled={loading}
+            >
+                {loading ? 'Creating...' : 'Create Variant'}
+            </button>
+
         </form>
       </div>
     </div>
