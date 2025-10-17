@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "Product Variant API Test Collection",
+    "description": "Test collection for all Product Variant APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Product Variant",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "productId", "value": "1", "type": "text" },
+            { "key": "name", "value": "Variant Name", "type": "text" },
+            { "key": "price", "value": "100000", "type": "text" },
+            { "key": "stock", "value": "10", "type": "text" }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/product-variants",
+          "host": [ "{{base_url}}" ],
+          "path": [ "product-variants" ]
+        }
+      }
+    },
+    {
+      "name": "Update Product Variant",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Updated Variant\",\n  \"price\": 120000,\n  \"stock\": 15\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/product-variants/1",
+          "host": [ "{{base_url}}" ],
+          "path": [ "product-variants", "1" ]
+        }
+      }
+    },
+    {
+      "name": "Delete Product Variant",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/product-variants/1",
+          "host": [ "{{base_url}}" ],
+          "path": [ "product-variants", "1" ]
+        }
+      }
+    },
+    {
+      "name": "Get Product Variant By ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/product-variants/1",
+          "host": [ "{{base_url}}" ],
+          "path": [ "product-variants", "1" ]
+        }
+      }
+    },
+    {
+      "name": "Get All Product Variants",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/product-variants?page=0&size=10",
+          "host": [ "{{base_url}}" ],
+          "path": [ "product-variants" ],
+          "query": [
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "10" }
+          ]
+        }
+      }
+    }
+  ]
+}
+
