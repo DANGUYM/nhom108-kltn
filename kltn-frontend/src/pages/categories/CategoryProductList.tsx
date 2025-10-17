@@ -5,56 +5,28 @@ import { toast } from "sonner";
 
 import { filterProducts } from "@/services/productService";
 import { getSubCategories, getRootCategories } from "@/services/categoryService";
+import { getBrands, getColors, getSizes } from "@/services/filterService";
 import { mapProductToViewModel, ProductViewModel } from "@/mappers/productMapper";
 import { PaginatedProductResponse } from "@/types/product";
 import { CategoryResponse } from "@/types/responses/categoryResponse";
+import { Brand } from "@/types/brand";
+import { Color } from "@/types/color";
+import { Size } from "@/types/size";
 import FilterDropdown from "@/components/common/FilterDropdown";
-
-// Mock Data
-const mockColors = [
-    { id: 1, name: 'Đỏ' }, { id: 2, name: 'Xanh dương' }, { id: 3, name: 'Xanh lá' }, 
-    { id: 4, name: 'Đen' }, { id: 5, name: 'Trắng' }, { id: 6, name: 'Xám' }, 
-    { id: 7, name: 'Hồng' }, { id: 8, name: 'Vàng' }, { id: 9, name: 'Nâu' }, 
-    { id: 10, name: 'Tím' }, { id: 11, name: 'Cam' }, { id: 12, name: 'Be' }, 
-    { id: 13, name: 'Xanh navy' }, { id: 14, name: 'Xanh mint' }, { id: 15, name: 'Hồng pastel' }
-];
-
-const mockSizes = [
-    { id: 1, name: 'XS' }, { id: 2, name: 'S' }, { id: 3, name: 'M' }, 
-    { id: 4, name: 'L' }, { id: 5, name: 'XL' }, { id: 6, name: 'XXL' }, 
-    { id: 7, name: 'XXXL' }, { id: 8, name: 'Free Size' }, { id: 9, name: '38' }, 
-    { id: 10, name: '39' }, { id: 11, name: '40' }, { id: 12, name: '41' }, 
-    { id: 13, name: '42' }, { id: 14, name: '43' }, { id: 15, name: '44' }
-];
-
-const mockBrands = [
-    { id: 1, name: 'Nike' }, { id: 2, name: 'Adidas' }, { id: 3, name: 'Puma' },
-    { id: 4, name: 'Zara' }, { id: 5, name: 'H&M' }, { id: 6, name: 'Uniqlo' },
-    { id: 7, name: 'Coolmate' }, { id: 8, name: 'Yame' }, { id: 9, name: 'Calvin Klein' },
-    { id: 10, name: 'Tommy Hilfiger' }, { id: 11, name: 'Polo Ralph Lauren' },
-    { id: 12, name: 'Lacoste' }, { id: 13, name: 'Converse' }, { id: 14, name: 'Vans' },
-    { id: 15, name: 'Local Brand' }
-];
 
 const sortOptions = [
     { label: "Mới nhất", value: "createdAt,DESC" },
     { label: "Cũ nhất", value: "createdAt,ASC" },
-
     { label: "Bán chạy nhất", value: "orderCount,DESC" },
     { label: "Bán ít nhất", value: "orderCount,ASC" },
-
     { label: "Đánh giá cao nhất", value: "averageRating,DESC" },
     { label: "Đánh giá thấp nhất", value: "averageRating,ASC" },
-
     { label: "Giá: Thấp đến cao", value: "discountedPrice,ASC" },
     { label: "Giá: Cao đến thấp", value: "discountedPrice,DESC" },
-
     { label: "Lượt yêu thích", value: "favoriteCount,DESC" },
     { label: "Lượt yêu thích ít nhất", value: "favoriteCount,ASC" },
-
     { label: "Đánh giá nhiều nhất", value: "reviewCount,DESC" },
     { label: "Đánh giá ít nhất", value: "reviewCount,ASC" },
-
     { label: "Giảm giá nhiều nhất", value: "currentDiscountPercent,DESC" },
     { label: "Giảm giá ít nhất", value: "currentDiscountPercent,ASC" },
 ];
@@ -71,6 +43,10 @@ const ProductListPage: React.FC = () => {
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
+    const [brands, setBrands] = useState<Brand[]>([]);
+    const [colors, setColors] = useState<Color[]>([]);
+    const [sizes, setSizes] = useState<Size[]>([]);
+
     const [selectedColorIds, setSelectedColorIds] = useState<number[]>([]);
     const [selectedSizeIds, setSelectedSizeIds] = useState<number[]>([]);
     const [selectedBrandIds, setSelectedBrandIds] = useState<number[]>([]);
@@ -79,6 +55,25 @@ const ProductListPage: React.FC = () => {
     const [tempMinPrice, setTempMinPrice] = useState('');
     const [tempMaxPrice, setTempMaxPrice] = useState('');
     const [sortOption, setSortOption] = useState<string>(sortOptions[0].value);
+
+    useEffect(() => {
+        const fetchFilterData = async () => {
+            try {
+                const [brandsData, colorsData, sizesData] = await Promise.all([
+                    getBrands(),
+                    getColors(),
+                    getSizes()
+                ]);
+                setBrands(brandsData);
+                setColors(colorsData);
+                setSizes(sizesData);
+            } catch (error) {
+                console.error("Failed to fetch filter data:", error);
+                toast.error("Không thể tải dữ liệu bộ lọc.");
+            }
+        };
+        fetchFilterData();
+    }, []);
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -242,21 +237,21 @@ const ProductListPage: React.FC = () => {
                         
                         <FilterDropdown 
                             title="Thương hiệu"
-                            options={mockBrands}
+                            options={brands}
                             selectedIds={selectedBrandIds}
                             onSelectionChange={handleBrandChange}
                         />
 
                         <FilterDropdown 
                             title="Màu sắc"
-                            options={mockColors}
+                            options={colors}
                             selectedIds={selectedColorIds}
                             onSelectionChange={handleColorChange}
                         />
 
                         <FilterDropdown 
                             title="Kích thước"
-                            options={mockSizes}
+                            options={sizes}
                             selectedIds={selectedSizeIds}
                             onSelectionChange={handleSizeChange}
                         />

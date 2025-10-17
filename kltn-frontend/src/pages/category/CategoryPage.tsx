@@ -14,7 +14,8 @@ const CategoryPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<FilterPayload>({
-    page: 0,
+      status: "ACTIVE",
+      page: 0,
     size: 12,
     sortDirection: 'DESC',
     sortBy: 'createdAt',
