@@ -1,30 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import PageMeta from '../../components/common/PageMeta';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import { getProductVariantById, updateProductVariant } from "@/services/productVariantService.ts";
-import { ProductVariant } from '@/types/product';
+import { getColors, getSizes } from "@/services/filterService";
+import { ProductVariant, ProductReference } from '@/types/product';
+import { Color } from '@/types/color';
+import { Size } from '@/types/size';
 
-const mockColors = [
-    { id: 1, name: 'Đỏ' }, { id: 2, name: 'Xanh dương' }, { id: 3, name: 'Xanh lá' },
-    { id: 4, name: 'Đen' }, { id: 5, name: 'Trắng' }, { id: 6, name: 'Xám' },
-    { id: 7, name: 'Hồng' }, { id: 8, name: 'Vàng' }, { id: 9, name: 'Nâu' },
-    { id: 10, name: 'Tím' }, { id: 11, name: 'Cam' }, { id: 12, name: 'Be' },
-    { id: 13, name: 'Xanh navy' }, { id: 14, name: 'Xanh mint' }, { id: 15, name: 'Hồng pastel' }
-];
-const mockSizes = [
-    { id: 1, name: 'XS' }, { id: 2, name: 'S' }, { id: 3, name: 'M' },
-    { id: 4, name: 'L' }, { id: 5, name: 'XL' }, { id: 6, name: 'XXL' },
-    { id: 7, name: 'XXXL' }, { id: 8, name: 'Free Size' }, { id: 9, name: '38' },
-    { id: 10, name: '39' }, { id: 11, name: '40' }, { id: 12, name: '41' },
-    { id: 13, name: '42' }, { id: 14, name: '43' }, { id: 15, name: '44' }
-];
+const toSkuString = (str: string | undefined): string => {
+    if (!str) return '';
+    str = str.toLowerCase();
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '');
+    return str.toUpperCase();
+};
 
 export default function EditVariant() {
 
     const { variantId } = useParams<{ variantId: string }>();
     const id = Number(variantId);
-
+    const location = useLocation();
+    
+    const [productReference, setProductReference] = useState<ProductReference | null>(null);
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -41,29 +46,69 @@ export default function EditVariant() {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
 
+    // Select options
+    const [colors, setColors] = useState<Color[]>([]);
+    const [sizes, setSizes] = useState<Size[]>([]);
+
     useEffect(() => {
-        const fetchVariant = async () => {
+        const productRefFromState = location.state?.productReference as ProductReference | undefined;
+        if (!productRefFromState) {
+            toast.error("Product information is missing. Cannot edit variant.");
+            navigate(-1);
+            return;
+        }
+        setProductReference(productRefFromState);
+
+        const fetchInitialData = async () => {
             setLoading(true);
             try {
-                const data = await getProductVariantById(id);
-                setVariant(data);
-                setSku(data.sku || '');
-                setPrice(data.price ? String(data.price) : '');
-                setStockQuantity(data.stockQuantity ? String(data.stockQuantity) : '');
-                setMaterial(data.material || '');
-                setSizeId(data.size?.id || '');
-                setColorId(data.color?.id || '');
-                setImageUrl(data.imageUrl || null);
+                const [variantData, colorsData, sizesData] = await Promise.all([
+                    getProductVariantById(id),
+                    getColors(),
+                    getSizes(),
+                ]);
+
+                setVariant(variantData);
+                setPrice(variantData.price ? String(variantData.price) : '');
+                setStockQuantity(variantData.stockQuantity ? String(variantData.stockQuantity) : '');
+                setMaterial(variantData.material || '');
+                setSizeId(variantData.size?.id || '');
+                setColorId(variantData.color?.id || '');
+                setImageUrl(variantData.imageUrl || null);
+
+                setColors(colorsData);
+                setSizes(sizesData);
+
             } catch (err: any) {
                 setError('Không thể tải dữ liệu variant.');
+                toast.error('Không thể tải dữ liệu variant.');
             } finally {
                 setLoading(false);
             }
         };
+        
         if (id) {
-            fetchVariant();
+            fetchInitialData();
         }
-    }, [id]);
+    }, [id, location.state, navigate]);
+
+    useEffect(() => {
+        if (productReference && colorId && sizeId && colors.length > 0 && sizes.length > 0) {
+            const color = colors.find(c => c.id === colorId);
+            const size = sizes.find(s => s.id === sizeId);
+
+            if (color && size) {
+                const subCatName = toSkuString(productReference.category.name);
+                const brandName = toSkuString(productReference.brand.name);
+                const colorName = toSkuString(color.name);
+                const sizeName = toSkuString(size.name);
+
+                const skuParts = [subCatName, brandName, colorName, sizeName];
+                const generatedSku = skuParts.filter(Boolean).join('-');
+                setSku(generatedSku);
+            }
+        }
+    }, [colorId, sizeId, productReference, colors, sizes]);
 
     const handleDeleteImageFile = () => {
         setImageFile(null);
@@ -91,9 +136,11 @@ export default function EditVariant() {
         try {
             await updateProductVariant(id, formData);
             setSuccess('Cập nhật variant thành công!');
+            toast.success('Cập nhật variant thành công!');
             setTimeout(() => navigate(-1), 1200);
         } catch (err: any) {
             setError(err.message || 'Cập nhật thất bại.');
+            toast.error(err.message || 'Cập nhật thất bại.');
         }
     };
 
@@ -111,11 +158,11 @@ export default function EditVariant() {
                     {success && <div className="mb-4 text-green-500">{success}</div>}
                     <div className="mb-4.5">
                         <label className="mb-2.5 block text-black dark:text-white">SKU</label>
-                        <input type="text" value={sku} onChange={e => setSku(e.target.value)} maxLength={100} className="w-full rounded border p-2" required />
+                        <input type="text" value={sku} className="w-full rounded border p-2 bg-gray-200 dark:bg-form-input" readOnly />
                     </div>
                     <div className="mb-4.5">
                         <label className="mb-2.5 block text-black dark:text-white">Giá</label>
-                        <input type="number" value={price} onChange={e => setPrice(e.target.value)} min={0} step="0.01" className="w-full rounded border p-2" required />
+                        <input type="number" value={price} className="w-full rounded border p-2 bg-gray-200 dark:bg-form-input" readOnly />
                     </div>
                     <div className="mb-4.5">
                         <label className="mb-2.5 block text-black dark:text-white">Số lượng tồn kho</label>
@@ -125,22 +172,39 @@ export default function EditVariant() {
                         <label className="mb-2.5 block text-black dark:text-white">Chất liệu</label>
                         <input type="text" value={material} onChange={e => setMaterial(e.target.value)} maxLength={255} className="w-full rounded border p-2" />
                     </div>
+                    {/*<div className="mb-4.5 flex gap-4">*/}
+                    {/*    <div className="w-1/2">*/}
+                    {/*        <label className="mb-2.5 block text-black dark:text-white">Màu sắc</label>*/}
+                    {/*        <select disabled value={colorId} onChange={e => setColorId(Number(e.target.value))} className="w-full rounded border p-2" required>*/}
+                    {/*            <option value="">Chọn màu</option>*/}
+                    {/*            {colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}*/}
+                    {/*        </select>*/}
+                    {/*    </div>*/}
+                    {/*    <div className="w-1/2">*/}
+                    {/*        <label className="mb-2.5 block text-black dark:text-white">Kích cỡ</label>*/}
+                    {/*        <select disabled value={sizeId} onChange={e => setSizeId(Number(e.target.value))} className="w-full rounded border p-2" required>*/}
+                    {/*            <option value="">Chọn size</option>*/}
+                    {/*            {sizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}*/}
+                    {/*        </select>*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
+
                     <div className="mb-4.5 flex gap-4">
                         <div className="w-1/2">
-                            <label className="mb-2.5 block text-black dark:text-white">Màu sắc</label>
-                            <select value={colorId} onChange={e => setColorId(Number(e.target.value))} className="w-full rounded border p-2" required>
-                                <option value="">Chọn màu</option>
-                                {mockColors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
+                            <label className="block text-black dark:text-white mb-1">Màu sắc</label>
+                            <p className="w-full rounded border p-2 bg-gray-100 dark:bg-gray-800">
+                                {colors.find(c => c.id === colorId)?.name || 'Chưa chọn'}
+                            </p>
                         </div>
                         <div className="w-1/2">
-                            <label className="mb-2.5 block text-black dark:text-white">Kích cỡ</label>
-                            <select value={sizeId} onChange={e => setSizeId(Number(e.target.value))} className="w-full rounded border p-2" required>
-                                <option value="">Chọn size</option>
-                                {mockSizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
+                            <label className="block text-black dark:text-white mb-1">Kích cỡ</label>
+                            <p className="w-full rounded border p-2 bg-gray-100 dark:bg-gray-800">
+                                {sizes.find(s => s.id === sizeId)?.name || 'Chưa chọn'}
+                            </p>
                         </div>
                     </div>
+
+
                     <div className="mb-4.5">
                         <label className="mb-2.5 block text-black dark:text-white">Ảnh variant</label>
                         <input type="file" accept="image/*" onChange={e => {
@@ -153,10 +217,7 @@ export default function EditVariant() {
                             </div>
                         )}
                     </div>
-
-
-
-                    <button type="submit" className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:bg-primary-hover">Update Variant</button>
+                    <button type="submit" className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray">Cập nhật Variant</button>
                 </form>
             </div>
         </div>

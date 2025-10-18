@@ -96,6 +96,14 @@ export interface Image {
     sortOrder: number;
 }
 
+// Reference to the parent product for SKU generation
+export interface ProductReference {
+    id: number;
+    name: string;
+    brand: Brand;
+    category: Category;
+}
+
 export interface ProductVariant {
     id: number;
     sku: string;
@@ -107,6 +115,7 @@ export interface ProductVariant {
     color: Color;
     inStock?: boolean;
     images?: Image[];
+    product?: ProductReference; // Add reference to parent product
 }
 
 export interface ProductDetailResponse {

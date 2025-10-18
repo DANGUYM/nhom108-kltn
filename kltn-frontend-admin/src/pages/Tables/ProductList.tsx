@@ -2,48 +2,46 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { ProductDetailResponse, ProductVariant, Image as ProductImage } from '@/types/product'; // Updated import
-
+import { ProductDetailResponse, ProductVariant, Image as ProductImage } from '@/types/product';
 import { getProductById, updateProduct } from '@/services/productService';
-import { getProductVariantsByProductId, deleteProductVariant } from '@/services/productVariantService';
+import { getProductVariantsByProductId, deleteProductVariant, updateProductVariant } from '@/services/productVariantService';
+import { getProductDiscounts, applyDiscountToProducts, removeDiscountFromProducts } from '@/services/discountService';
 
 import PageMeta from '@/components/common/PageMeta';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
-
-
-
 
 const ProductListPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const productId = Number(id);
 
-    const [product, setProduct] = useState<ProductDetailResponse | null>(null); // Updated state type
+    const [product, setProduct] = useState<ProductDetailResponse | null>(null);
     const [variants, setVariants] = useState<ProductVariant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
     const [formData, setFormData] = useState({ name: '', description: '', basePrice: '', status: '' });
 
+    // Discount state
+    const [currentDiscountPercent, setCurrentDiscountPercent] = useState(0);
+    const [newDiscountPercent, setNewDiscountPercent] = useState('');
+
     // Image state management
     const [productImages, setProductImages] = useState<ProductImage[]>([]);
     const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
     const [imagesToDelete, setImagesToDelete] = useState<number[]>([]);
-    
-    const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
-    const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
     const fetchProductData = useCallback(async () => {
         if (!productId) return;
         setIsLoading(true);
         try {
-            const productData = await getProductById(productId);
-            const variantsData = await getProductVariantsByProductId(productId);
+            const [productData, variantsData, discountsData] = await Promise.all([
+                getProductById(productId),
+                getProductVariantsByProductId(productId),
+                getProductDiscounts(productId)
+            ]);
 
             setProduct(productData);
             setVariants(variantsData);
-
-            console.log(variants)
-            
             setProductImages(productData.images || []);
 
             setFormData({
@@ -52,6 +50,15 @@ const ProductListPage: React.FC = () => {
                 basePrice: productData.basePrice.toString(),
                 status: productData.status,
             });
+
+            if (discountsData && discountsData.length > 0) {
+                const discountValue = discountsData[0].discount.value;
+                setCurrentDiscountPercent(discountValue);
+                setNewDiscountPercent(String(discountValue));
+            } else {
+                setCurrentDiscountPercent(0);
+                setNewDiscountPercent('0');
+            }
             
             setImagesToDelete([]);
             setNewImageFiles([]);
@@ -69,7 +76,10 @@ const ProductListPage: React.FC = () => {
     }, [fetchProductData]);
 
     const handleEditVariantProduct = (productVariantId: number) => {
-        navigate(`/tables/edit-variant/${productVariantId}`);
+        if (!product) return;
+        navigate(`/tables/edit-variant/${productVariantId}`, {
+            state: { productReference: product } // Pass parent product info
+        });
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -87,7 +97,6 @@ const ProductListPage: React.FC = () => {
         setNewImageFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Xóa ảnh khỏi productImages và thêm id vào imagesToDelete
     const handleDeleteImage = (imageId: number) => {
         setImagesToDelete(prev => [...prev, imageId]);
         setProductImages(prev => prev.filter(img => img.id !== imageId));
@@ -95,6 +104,11 @@ const ProductListPage: React.FC = () => {
 
     const handleSaveProduct = async () => {
         if (!product) return;
+
+        const newBasePrice = parseFloat(formData.basePrice);
+        const priceHasChanged = newBasePrice !== product.basePrice;
+
+        // 1. Update product base info
         const form = new FormData();
         form.append('name', formData.name);
         form.append('description', formData.description);
@@ -102,29 +116,61 @@ const ProductListPage: React.FC = () => {
         form.append('categoryId', String(product.category.id));
         form.append('brandId', String(product.brand.id));
         form.append('status', formData.status);
-        newImageFiles.forEach(file => {
-            form.append('newImages', file);
-        });
-        imagesToDelete.forEach(id => {
-            form.append('imagesToDelete', id.toString());
-        });
+        newImageFiles.forEach(file => form.append('newImages', file));
+        imagesToDelete.forEach(id => form.append('imagesToDelete', id.toString()));
+
         try {
             await updateProduct(product.id, form);
-            toast.success('Product updated successfully!');
-            fetchProductData();
+            toast.success('Product information updated successfully!');
         } catch (error: any) {
-            toast.error(`Failed to update product: ${error.message}`);
+            toast.error(`Failed to update product info: ${error.message}`);
+            return; 
         }
-    };
 
-    const handleOpenVariantModal = (variant: ProductVariant | null) => {
-        setSelectedVariant(variant);
-        setIsVariantModalOpen(true);
-    };
+        // 2. Synchronize variant prices if base price changed
+        if (priceHasChanged) {
+            toast.info('Base price changed. Synchronizing variant prices...');
+            const updatePromises = variants.map(variant => {
+                const variantFormData = new FormData();
+                variantFormData.append('sku', variant.sku);
+                variantFormData.append('price', formData.basePrice); // Use the new base price
+                variantFormData.append('stockQuantity', String(variant.stockQuantity));
+                variantFormData.append('material', variant.material);
+                variantFormData.append('sizeId', String(variant.size.id));
+                variantFormData.append('colorId', String(variant.color.id));
+                return updateProductVariant(variant.id, variantFormData);
+            });
 
-    const handleCloseVariantModal = () => {
-        setIsVariantModalOpen(false);
-        setSelectedVariant(null);
+            try {
+                await Promise.all(updatePromises);
+                toast.success(`Successfully synchronized price for ${variants.length} variants.`);
+            } catch (error: any) {
+                toast.error(`Failed to synchronize variant prices: ${error.message}`);
+            }
+        }
+
+        // 3. Handle discount changes
+        const newDiscountValue = newDiscountPercent === '' ? 0 : Number(newDiscountPercent);
+        if (newDiscountValue !== currentDiscountPercent) {
+            if (currentDiscountPercent > 0) {
+                try {
+                    await removeDiscountFromProducts(currentDiscountPercent, [productId]);
+                    toast.success(`Successfully removed ${currentDiscountPercent}% discount.`);
+                } catch (error: any) {
+                    toast.error(`Failed to remove old discount: ${error.message}`);
+                }
+            }
+            if (newDiscountValue > 0) {
+                try {
+                    await applyDiscountToProducts({ discountId: newDiscountValue, productIds: [productId] });
+                    toast.success(`Successfully applied ${newDiscountValue}% discount.`);
+                } catch (error: any) {
+                    toast.error(`Failed to apply new discount: ${error.message}`);
+                }
+            }
+        }
+
+        // 4. Refresh all data
         fetchProductData();
     };
 
@@ -159,7 +205,6 @@ const ProductListPage: React.FC = () => {
                         <h3 className="font-medium text-black dark:text-white">Product Information</h3>
                     </div>
                     <div className="p-6.5">
-                        {/* --- Form Fields --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
                             <div>
                                 <label className="block text-black dark:text-white mb-1">Product Name</label>
@@ -189,9 +234,23 @@ const ProductListPage: React.FC = () => {
                                     <option value="OUT_OF_STOCK">OUT_OF_STOCK</option>
                                 </select>
                             </div>
+                             <div>
+                                <label className="block text-black dark:text-white mb-1">Discount Percent (%)</label>
+                                <input 
+                                    type="number"
+                                    value={newDiscountPercent}
+                                    onChange={e => {
+                                        const value = e.target.value;
+                                        if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
+                                            setNewDiscountPercent(value);
+                                        }
+                                    }}
+                                    placeholder="0-100"
+                                    className="w-full rounded border p-2 dark:bg-form-input"
+                                />
+                            </div>
                         </div>
 
-                        {/* --- Unified Image Management --- */}
                         <div className="mt-6 space-y-4">
                             <h4 className="font-medium text-black dark:text-white">Product Images</h4>
                             <ul className="flex flex-wrap gap-4 p-2 border rounded-md min-h-[120px]">
@@ -208,7 +267,6 @@ const ProductListPage: React.FC = () => {
                                         </button>
                                     </li>
                                 ))}
-                                {/* Hiển thị ảnh mới chưa có id */}
                                 {newImageFiles.map((file, idx) => {
                                     const url = URL.createObjectURL(file);
                                     return (
@@ -237,11 +295,9 @@ const ProductListPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* <!-- Variants List --> */}
                 <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
                     <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark flex justify-between items-center">
                         <h3 className="font-medium text-black dark:text-white">Product Variants</h3>
-                        {/*<button onClick={() => handleOpenVariantModal(null)} className="bg-primary text-white py-2 px-4 rounded hover:bg-opacity-90">Add Variant</button>*/}
                     </div>
                     <div className="p-6.5">
                         {variants.map(variant => (

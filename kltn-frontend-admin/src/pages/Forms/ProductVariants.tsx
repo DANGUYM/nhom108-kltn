@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import { getAllProductsForSelect } from '../../services/productService';
 import { createProductVariant } from '../../services/productVariantService';
+import { getProductDiscounts } from '../../services/discountService';
 import { Product } from '@/types/product';
-
 import { Color } from "@/types/color";
 import { Size } from "@/types/size";
 import { getColors, getSizes } from "@/services/filterService";
 
-
-
-// Updated helper to robustly remove diacritics for SKU
 const toSkuString = (str: string | undefined): string => {
     if (!str) return '';
     str = str.toLowerCase();
@@ -22,7 +20,6 @@ const toSkuString = (str: string | undefined): string => {
     str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
     str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
     str = str.replace(/đ/g, "d");
-    // Remove any remaining special characters and spaces
     str = str.replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '');
     return str.toUpperCase();
 };
@@ -31,6 +28,7 @@ export default function AddProductVariantForm() {
   const [productId, setProductId] = useState<number | ''>('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
+  const [discountedPrice, setDiscountedPrice] = useState<number | null>(null);
   const [stockQuantity, setStockQuantity] = useState('');
   const [material, setMaterial] = useState('');
   const [sizeId, setSizeId] = useState<number | ''>('');
@@ -38,44 +36,57 @@ export default function AddProductVariantForm() {
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [colors, setColors] = useState<Color[]>([]);
+  const [sizes, setSizes] = useState<Size[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-    const [colors, setColors] = useState<Color[]>([]);
-    const [sizes, setSizes] = useState<Size[]>([]);
-
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchInitialData = async () => {
       try {
-        const productList = await getAllProductsForSelect();
+        const [productList, colorsData, sizesData] = await Promise.all([
+          getAllProductsForSelect(),
+          getColors(),
+          getSizes(),
+        ]);
         setProducts(productList);
+        setColors(colorsData);
+        setSizes(sizesData);
       } catch (err) {
-        setError('Failed to fetch products.');
+        toast.error('Failed to fetch initial data.');
         console.error(err);
       }
     };
-    fetchProducts();
+    fetchInitialData();
   }, []);
 
-    useEffect(() => {
-        const fetchFilterData = async () => {
-            try {
-                const [ colorsData, sizesData] = await Promise.all([
-                    getColors(),
-                    getSizes()
-                ]);
-                setColors(colorsData);
-                setSizes(sizesData);
-            } catch (error) {
-                console.error("Failed to fetch filter data:", error);
-                toast.error("Không thể tải dữ liệu bộ lọc.");
-            }
-        };
-        fetchFilterData();
-    }, []);
+  const handleProductChange = async (selectedProductId: number) => {
+    setProductId(selectedProductId);
+    setDiscountedPrice(null);
 
-  // Auto-generate SKU based on the specified format
+    const product = products.find(p => p.id === selectedProductId);
+    if (product) {
+      setPrice(String(product.basePrice));
+
+      try {
+        const discounts = await getProductDiscounts(selectedProductId);
+        if (discounts && discounts.length > 0) {
+          setDiscountedPrice(discounts[0].discountedPrice);
+          toast.info(`Discount found! New price is ${discounts[0].discountedPrice.toLocaleString()}đ`);
+        } else {
+          setDiscountedPrice(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch discounts:", err);
+        toast.error("Could not fetch discount information for this product.");
+      }
+    } else {
+      setPrice('');
+    }
+  };
+
   useEffect(() => {
     if (productId && colorId && sizeId) {
       const product = products.find(p => p.id === productId);
@@ -87,16 +98,13 @@ export default function AddProductVariantForm() {
         const brandName = toSkuString(product.brand.name);
         const colorName = toSkuString(color.name);
         const sizeName = toSkuString(size.name);
-
-        // SKU format: <SUB_CATEGORY_NAME>-<BRAND_NAME>-<COLOR_NAME>-<SIZE_NAME>
-        const skuParts = [subCatName, brandName, colorName, sizeName];
-        const generatedSku = skuParts.filter(Boolean).join('-'); // Filter out empty parts and join
+        const generatedSku = [subCatName, brandName, colorName, sizeName].filter(Boolean).join('-');
         setSku(generatedSku);
       }
     } else {
       setSku('');
     }
-  }, [productId, colorId, sizeId, products]);
+  }, [productId, colorId, sizeId, products, colors, sizes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,10 +130,12 @@ export default function AddProductVariantForm() {
     try {
       await createProductVariant(formData);
       setSuccess('Product variant created successfully!');
+      toast.success('Product variant created successfully!');
       // Reset form
       setProductId('');
       setSku('');
       setPrice('');
+      setDiscountedPrice(null);
       setStockQuantity('');
       setMaterial('');
       setSizeId('');
@@ -133,12 +143,12 @@ export default function AddProductVariantForm() {
       setImageFile(null);
     } catch (err: any) {
       setError(err.message || 'Failed to create product variant.');
+      toast.error(err.message || 'Failed to create product variant.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Xóa file khỏi imageFile
   const handleDeleteImageFile = () => {
     setImageFile(null);
   };
@@ -164,7 +174,7 @@ export default function AddProductVariantForm() {
             </label>
             <select
               value={productId}
-              onChange={(e) => setProductId(Number(e.target.value))}
+              onChange={(e) => handleProductChange(Number(e.target.value))}
               className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
               required
             >
@@ -193,13 +203,18 @@ export default function AddProductVariantForm() {
                 Price <span className="text-meta-1">*</span>
                 </label>
                 <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="Enter variant price"
-                className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary"
-                required
+                  type="number"
+                  value={price}
+                  placeholder="Select a product to see the price"
+                  className="w-full rounded border-[1.5px] border-stroke bg-gray-200 py-3 px-5 font-medium outline-none transition dark:border-form-strokedark dark:bg-form-input"
+                  readOnly
+                  required
                 />
+                {discountedPrice !== null && (
+                  <p className="mt-2 text-sm font-medium text-success">
+                    After Discount: {discountedPrice.toLocaleString()}đ
+                  </p>
+                )}
             </div>
           </div>
 

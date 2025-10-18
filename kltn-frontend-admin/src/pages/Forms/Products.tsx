@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import { getCachedRootCategories, getSubCategories } from '../../services/categoryService';
 import { createProduct } from '../../services/productService';
+import { applyDiscountToProducts } from '../../services/discountService';
 import { CategoryResponse } from '@/types/responses/categoryResponse';
-
 import { getBrands } from "@/services/filterService";
 import { Brand } from "@/types/brand";
-
 
 export default function AddProductForm() {
   const [productName, setProductName] = useState('');
@@ -15,21 +15,19 @@ export default function AddProductForm() {
   const [basePrice, setBasePrice] = useState('');
   const [brandId, setBrandId] = useState<number | ''>('');
   const [images, setImages] = useState<File[]>([]);
-  
+  const [discountPercent, setDiscountPercent] = useState('');
+
   const [rootCategories, setRootCategories] = useState<CategoryResponse[]>([]);
   const [subCategories, setSubCategories] = useState<CategoryResponse[]>([]);
   const [selectedRootCategoryId, setSelectedRootCategoryId] = useState<number | ''>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<number | ''>('');
 
-
-    const [brands, setBrands] = useState<Brand[]>([]);
-
+  const [brands, setBrands] = useState<Brand[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Fetch root categories on component mount
   useEffect(() => {
     const fetchRootCategories = async () => {
       try {
@@ -43,25 +41,19 @@ export default function AddProductForm() {
     fetchRootCategories();
   }, []);
 
-    useEffect(() => {
-        const fetchFilterData = async () => {
-            try {
-                const [brandsData] = await Promise.all([
-                    getBrands(),
+  useEffect(() => {
+    const fetchFilterData = async () => {
+      try {
+        const brandsData = await getBrands();
+        setBrands(brandsData);
+      } catch (error) {
+        console.error("Failed to fetch filter data:", error);
+        toast.error("Không thể tải dữ liệu bộ lọc.");
+      }
+    };
+    fetchFilterData();
+  }, []);
 
-                ]);
-                setBrands(brandsData);
-
-            } catch (error) {
-                console.error("Failed to fetch filter data:", error);
-                toast.error("Không thể tải dữ liệu bộ lọc.");
-            }
-        };
-        fetchFilterData();
-    }, []);
-
-
-  // Fetch sub-categories when a root category is selected
   useEffect(() => {
     const fetchSubCategories = async () => {
       if (selectedRootCategoryId) {
@@ -69,7 +61,7 @@ export default function AddProductForm() {
           setLoading(true);
           const subs = await getSubCategories(selectedRootCategoryId);
           setSubCategories(subs);
-          setSelectedSubCategoryId(''); // Reset sub-category selection
+          setSelectedSubCategoryId('');
         } catch (err) {
           setError('Failed to fetch sub-categories.');
           console.error(err);
@@ -77,7 +69,7 @@ export default function AddProductForm() {
           setLoading(false);
         }
       } else {
-        setSubCategories([]); // Clear sub-categories if no root is selected
+        setSubCategories([]);
       }
     };
     fetchSubCategories();
@@ -98,15 +90,33 @@ export default function AddProductForm() {
     formData.append('name', productName);
     formData.append('description', description);
     formData.append('basePrice', basePrice);
-    formData.append('categoryId', String(selectedSubCategoryId)); // Send the sub-category ID
+    formData.append('categoryId', String(selectedSubCategoryId));
     formData.append('brandId', String(brandId));
     images.forEach(image => {
       formData.append('images', image);
     });
 
     try {
-      await createProduct(formData);
-      setSuccess('Product created successfully!');
+      const newProduct = await createProduct(formData);
+      const discountValue = Number(discountPercent);
+
+      if (newProduct && newProduct.id && discountValue > 0) {
+        try {
+          await applyDiscountToProducts({
+            discountId: discountValue,
+            productIds: [newProduct.id],
+          });
+          setSuccess(`Product created successfully and ${discountValue}% discount applied!`);
+          toast.success(`Product created and ${discountValue}% discount applied!`);
+        } catch (discountError: any) {
+          setError(`Product created, but failed to apply discount: ${discountError.message}`);
+          toast.error(`Product created, but failed to apply discount: ${discountError.message}`);
+        }
+      } else {
+        setSuccess('Product created successfully!');
+        toast.success('Product created successfully!');
+      }
+
       // Reset form
       setProductName('');
       setDescription('');
@@ -115,14 +125,15 @@ export default function AddProductForm() {
       setSelectedSubCategoryId('');
       setBrandId('');
       setImages([]);
+      setDiscountPercent('');
     } catch (err: any) {
       setError(err.message || 'Failed to create product.');
+      toast.error(err.message || 'Failed to create product.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Xóa file khỏi danh sách images
   const handleDeleteImageFile = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -167,6 +178,26 @@ export default function AddProductForm() {
               placeholder="Enter base price"
               className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
               required
+            />
+          </div>
+
+          <div className="mb-4.5">
+            <label className="mb-2.5 block text-black dark:text-white">
+              Discount Percent (%)
+            </label>
+            <input
+              type="number"
+              value={discountPercent}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
+                  setDiscountPercent(value);
+                }
+              }}
+              placeholder="Enter discount percentage (0-100)"
+              min="0"
+              max="100"
+              className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
             />
           </div>
 
@@ -278,7 +309,7 @@ export default function AddProductForm() {
                 className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:text-yellow-300"
                 disabled={loading}
             >
-                {loading ? 'Creating...' : 'Create Variant'}
+                {loading ? 'Creating...' : 'Create Product'}
             </button>
 
         </form>

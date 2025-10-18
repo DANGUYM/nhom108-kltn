@@ -108,6 +108,7 @@ const CategoryProductList: React.FC = () => {
 
             const response = await filterProducts(payload);
             setProducts(response.content);
+            console.log(response.content);
             setTotalPages(response.totalPages);
         } catch (error) {
             toast.error("Failed to fetch products.");
@@ -210,6 +211,8 @@ const CategoryProductList: React.FC = () => {
                                 <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white">Brand</th>
                                 <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white">Category</th>
                                 <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">Base Price</th>
+                                <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">Discounted Price</th>
+                                <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">Discount Percent</th>
                                 <th className="py-4 px-4 font-medium text-black dark:text-white">Status</th>
                                 <th className="py-4 px-4 font-medium text-black dark:text-white">Actions</th>
                             </tr>
@@ -233,6 +236,21 @@ const CategoryProductList: React.FC = () => {
                                      <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
                                         <p className="text-black dark:text-white">{product.basePrice.toLocaleString()}đ</p>
                                     </td>
+                                    <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
+                                        <p className="text-black dark:text-white">
+                                            {product.discountedPrice != null
+                                                ? `${product.discountedPrice.toLocaleString()}đ`
+                                                : `${product.basePrice.toLocaleString()}đ`}
+                                        </p>
+                                    </td>
+                                    <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
+                                        <p className="text-black dark:text-white">
+                                            {product.currentDiscountPercent
+                                                ? `${product.currentDiscountPercent.toLocaleString()}%`
+                                                : '0%'}
+                                        </p>
+                                    </td>
+
                                     <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
                                         <p className={`inline-flex rounded-full bg-opacity-10 py-1 px-3 text-sm font-medium ${product.status === 'ACTIVE' ? 'bg-success text-success' : 'bg-danger text-danger'}`}>
                                             {product.status}
