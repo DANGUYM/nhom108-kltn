@@ -244,6 +244,8 @@ const ProductPage = () => {
                 const fetchedProduct = await getProductById(productId);
                 setProduct(fetchedProduct);
 
+                console.log(fetchedProduct)
+
                 const mainImage = fetchedProduct.primaryImageUrl || fetchedProduct.imageUrls?.[0] || '';
                 setSelectedImage(mainImage);
 

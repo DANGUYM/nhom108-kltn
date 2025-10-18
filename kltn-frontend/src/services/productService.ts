@@ -64,6 +64,7 @@ export const filterProducts = async (payload: FilterPayload): Promise<PaginatedP
  */
 export const getFlashSaleProducts = async (size: number = 10): Promise<Product[]> => {
     const payload: FilterPayload = {
+        status:"ACTIVE",
         hasDiscount: true,
         sortBy: "currentDiscountPercent",
         sortDirection: "DESC",
@@ -82,6 +83,7 @@ export const getFlashSaleProducts = async (size: number = 10): Promise<Product[]
  */
 export const getNewestProducts = async (size: number = 10): Promise<Product[]> => {
     const payload: FilterPayload = {
+        status:"ACTIVE",
         isNew: true,
         sortBy: "createdAt",
         sortDirection: "DESC",

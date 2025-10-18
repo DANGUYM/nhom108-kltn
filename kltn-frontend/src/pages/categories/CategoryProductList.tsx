@@ -81,6 +81,7 @@ const ProductListPage: React.FC = () => {
             try {
                 const [sortBy, sortDirection] = sortOption.split(',');
                 const payload: any = {
+                    status:"ACTIVE",
                     page: page,
                     size: 12,
                     sortBy: sortBy,
