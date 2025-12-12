@@ -6,7 +6,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL; // This should be 'http://lo
 export const sendMessage = async (message: string): Promise<ChatResponse> => {
   try {
     // Construct the absolute URL to override the default baseURL prefix
-    const absoluteUrl = `${BASE_URL}/chat`;
+    const absoluteUrl = `${BASE_URL}/luther/api/v1/chat`;
     const response = await axiosInstance.post<ChatResponse>(absoluteUrl, { message });
     return response.data;
   } catch (error) {
