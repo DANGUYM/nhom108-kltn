@@ -1,0 +1,295 @@
+package iuh.fit.se.services.impls;
+
+import com.nimbusds.jose.JOSEException;
+import iuh.fit.se.dtos.requests.*;
+import iuh.fit.se.dtos.responses.LoginResponse;
+import iuh.fit.se.dtos.responses.PreLoginResponse;
+import iuh.fit.se.dtos.responses.TokenResponse;
+import iuh.fit.se.entities.InvalidatedToken;
+import iuh.fit.se.entities.RefreshToken;
+import iuh.fit.se.entities.Role;
+import iuh.fit.se.entities.User;
+import iuh.fit.se.enums.RoleType;
+import iuh.fit.se.exceptions.AppException;
+import iuh.fit.se.exceptions.ErrorCode;
+import iuh.fit.se.mapper.UserMapper;
+import iuh.fit.se.repositories.InvalidatedTokenRepository;
+import iuh.fit.se.repositories.RoleRepository;
+import iuh.fit.se.repositories.UserRepository;
+import iuh.fit.se.services.interfaces.IAuthenticationService;
+import iuh.fit.se.services.interfaces.IEmailService;
+import iuh.fit.se.services.interfaces.IJwtService;
+import iuh.fit.se.services.interfaces.IRefreshTokenService;
+import jakarta.mail.MessagingException;
+import jakarta.servlet.http.HttpServletResponse;
+import java.text.Normalizer;
+import java.text.ParseException;
+import java.util.*;
+import java.util.function.Predicate;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+public class AuthenticationServiceImpl implements IAuthenticationService {
+
+  UserMapper userMapper;
+  IJwtService iJwtService;
+  IEmailService iEmailService;
+  RoleRepository roleRepository;
+  UserRepository userRepository;
+  StringRedisTemplate stringRedisTemplate;
+  IRefreshTokenService iRefreshTokenService;
+  InvalidatedTokenRepository invalidatedTokenRepository;
+  PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+
+  private boolean isGmailAddress(String email) {
+    String regex = "^[A-Za-z0-9._%+-]+@gmail\\.com$";
+    return email != null && email.matches(regex);
+  }
+
+  private User checkAuth(LoginRequest loginRequest) {
+
+    User user =
+        (!isGmailAddress(loginRequest.getUsername())
+                ? userRepository.findByUsername(loginRequest.getUsername())
+                : userRepository.findByEmail(loginRequest.getUsername()))
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+    List<Map.Entry<Predicate<User>, ErrorCode>> rules =
+        List.of(
+            Map.entry(
+                u -> passwordEncoder.matches(loginRequest.getPassword(), user.getPassword()),
+                ErrorCode.UNAUTHENTICATED),
+            Map.entry(User::getEnabled, ErrorCode.USER_DISABLED),
+            Map.entry(User::getIsActive, ErrorCode.USER_INACTIVATED));
+
+    rules.stream()
+        .filter(rule -> !rule.getKey().test(user))
+        .findFirst()
+        .ifPresent(
+            rule -> {
+              throw new AppException(rule.getValue());
+            });
+
+    return user;
+  }
+
+  @Override
+  public PreLoginResponse authenticateAdmin(LoginRequest loginRequest) throws MessagingException {
+    User user = checkAuth(loginRequest);
+    iEmailService.sentOtp(user);
+    return userMapper.toPreLoginResponse(user);
+  }
+
+  @Override
+  public LoginResponse authenticateClient(
+      LoginRequest loginRequest, boolean isRemembered, HttpServletResponse httpServletResponse)
+      throws JOSEException {
+    User user = checkAuth(loginRequest);
+    String accessToken = iJwtService.generateToken(user);
+    RefreshToken refreshToken = iRefreshTokenService.createRefreshToken(user.getId(), isRemembered);
+    iRefreshTokenService.createRefreshTokenCookie(
+        httpServletResponse, isRemembered, refreshToken.getToken());
+    return LoginResponse.builder()
+        .authenticated(true)
+        .roles(userMapper.toPreLoginResponse(user).getRoles())
+        .accessToken(accessToken)
+        .build();
+  }
+
+  @Override
+  public LoginResponse verifyOtp(
+      VerifyOtpRequest verifyOtpRequest, boolean isChecked, HttpServletResponse httpServletResponse)
+      throws JOSEException {
+    boolean isValidOtp = iEmailService.verifyOtp(verifyOtpRequest);
+    if (!isValidOtp) {
+      throw new AppException(ErrorCode.OTP_NOT_FOUND);
+    }
+    User user =
+        userRepository
+            .findByEmail(verifyOtpRequest.getEmail())
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    String accessToken = iJwtService.generateToken(user);
+    RefreshToken refreshToken = iRefreshTokenService.createRefreshToken(user.getId(), isChecked);
+
+    iRefreshTokenService.createRefreshTokenCookie(
+        httpServletResponse, isChecked, refreshToken.getToken());
+    return LoginResponse.builder().authenticated(true).accessToken(accessToken).build();
+  }
+
+  @Override
+  public void resendOtp(ResenOtpRequest resenOtpRequest) throws MessagingException {
+    iEmailService.resendOtp(resenOtpRequest);
+  }
+
+  @Override
+  public boolean introspect(IntrospectRequest request) throws JOSEException, ParseException {
+    var token = request.getToken();
+    boolean isValid = true;
+    try {
+      iJwtService.verifyToken(token);
+    } catch (AppException e) {
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  @Override
+  @Transactional
+  public void logout(LogoutRequest logoutRequest, String refreshToken)
+      throws ParseException, JOSEException {
+    try {
+      var signToken = iJwtService.verifyToken(logoutRequest.getToken());
+      String jit = signToken.getJWTClaimsSet().getJWTID();
+      Date expiryDate = signToken.getJWTClaimsSet().getExpirationTime();
+
+      invalidatedTokenRepository.save(
+          InvalidatedToken.builder().expiryTime(expiryDate).id(jit).build());
+
+      Optional.ofNullable(refreshToken).ifPresent(iRefreshTokenService::deleteByToken);
+
+      String key = "refresh:token:userId=" + signToken.getJWTClaimsSet().getLongClaim("userId");
+      if (stringRedisTemplate.opsForValue().get(key) != null) {
+        stringRedisTemplate.delete(key);
+      }
+
+    } catch (AppException e) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED);
+    }
+  }
+
+  @Override
+  @Transactional
+  public TokenResponse refreshAccessToken(RefreshRequest refreshRequest, String userId)
+      throws JOSEException {
+    Optional<RefreshToken> refreshToken =
+        iRefreshTokenService.findByToken(refreshRequest.getRefreshToken());
+
+    if (refreshToken.isPresent()) {
+      if (iRefreshTokenService.isTokenExpired(refreshToken.get())) {
+        iRefreshTokenService.deleteByToken(refreshRequest.getRefreshToken());
+        throw new AppException(ErrorCode.REFRESH_TOKEN_INVALID);
+      }
+      return TokenResponse.builder()
+          .token(iJwtService.generateToken(refreshToken.get().getUser()))
+          .build();
+    } else {
+      User user =
+          userRepository
+              .findById(Long.valueOf(userId))
+              .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+      String refreshTokenRedis =
+          stringRedisTemplate.opsForValue().get(String.valueOf(user.getId()));
+      assert refreshTokenRedis != null;
+      if (!refreshTokenRedis.equals(refreshRequest.getRefreshToken())) {
+        throw new AppException(ErrorCode.REFRESH_TOKEN_INVALID);
+      }
+      return TokenResponse.builder().token(iJwtService.generateToken(user)).build();
+    }
+  }
+
+  @Override
+  public void deleteRefreshTokenFromRedis(String userId) {
+    String key = "refresh:token:userId=" + userId;
+    if (stringRedisTemplate.opsForValue().get(key) != null) {
+      stringRedisTemplate.delete(key);
+    }
+  }
+
+  @Override
+  public void sendForgotPassword(String email, boolean isAdminPage) throws MessagingException {
+    iEmailService.sendForgotPasswordToken(email, isAdminPage);
+  }
+
+  @Override
+  @Transactional
+  public void verifyResetToken(VerifyResetTokenRequest verifyResetTokenRequest) {
+    User existUser =
+        userRepository
+            .findByEmail(verifyResetTokenRequest.getEmail())
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    String resetToken =
+        stringRedisTemplate.opsForValue().get("reset:token:userId=" + existUser.getId());
+
+    if (resetToken == null || resetToken.isBlank()) {
+      throw new AppException(ErrorCode.TOKEN_EXPIRED);
+    }
+    if (!resetToken.equals(verifyResetTokenRequest.getResetToken())) {
+      throw new AppException(ErrorCode.TOKEN_INVALID);
+    }
+    PasswordEncoder encoder = new BCryptPasswordEncoder(10);
+    existUser.setPassword(encoder.encode(verifyResetTokenRequest.getPassword()));
+    userRepository.save(existUser);
+
+    stringRedisTemplate.delete("reset:token:userId=" + existUser.getId());
+  }
+
+  @Override
+  public LoginResponse authenticateClientByOauth2(
+      Oauth2LoginRequest oauth2LoginRequest, HttpServletResponse httpServletResponse)
+      throws JOSEException {
+    Optional<User> existingOptionalUser = userRepository.findByEmail(oauth2LoginRequest.getEmail());
+    User existingUser;
+    if (existingOptionalUser.isPresent()) {
+      existingUser = existingOptionalUser.get();
+      boolean isAdmin =
+          existingUser.getRoles().stream().anyMatch(role -> role.getName() == RoleType.ADMIN);
+      if (isAdmin) throw new AppException(ErrorCode.ACCESS_DENIED);
+      if (!existingUser.getEnabled()) throw new AppException(ErrorCode.USER_DISABLED);
+    } else {
+      HashSet<Role> roles = new HashSet<>();
+      Role defaultRole =
+          roleRepository
+              .findByName(RoleType.valueOf("CUSTOMER"))
+              .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+      roles.add(defaultRole);
+      existingUser =
+          User.builder()
+              .email(oauth2LoginRequest.getEmail())
+              .fullName(oauth2LoginRequest.getFullName())
+              .avatarUrl(oauth2LoginRequest.getAvatar())
+              .username(generateUser(oauth2LoginRequest.getFullName()))
+              .isOauth2(true)
+              .roles(roles)
+              .enabled(true)
+              .isActive(true)
+              .build();
+
+      if (oauth2LoginRequest.getGoogleId() != null) {
+        existingUser.setGoogleId(oauth2LoginRequest.getGoogleId());
+      } else {
+        existingUser.setFacebookId(oauth2LoginRequest.getFacebookId());
+      }
+      userRepository.save(existingUser);
+    }
+
+    String accessToken = iJwtService.generateToken(existingUser);
+    RefreshToken refreshToken =
+        iRefreshTokenService.createRefreshToken(
+            existingUser.getId(), oauth2LoginRequest.getIsRemembered());
+    iRefreshTokenService.createRefreshTokenCookie(
+        httpServletResponse, oauth2LoginRequest.getIsRemembered(), refreshToken.getToken());
+
+    return LoginResponse.builder().authenticated(true).accessToken(accessToken).build();
+  }
+
+  private String generateUser(String fullName) {
+    String normalized =
+        Normalizer.normalize(fullName, Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+            .toLowerCase();
+
+    String baseUsername = normalized.replaceAll("\\s+", "");
+    String shortUUID = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+    return baseUsername + shortUUID;
+  }
+}

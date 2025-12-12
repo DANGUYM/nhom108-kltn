@@ -1,0 +1,51 @@
+package iuh.fit.se.entities;
+
+import iuh.fit.se.enums.ProductStatus;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+@Entity
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "products")
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class Product {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  Long id;
+
+  String name;
+
+  @Column(columnDefinition = "TEXT")
+  String description;
+
+  @Column(name = "base_price")
+  Double basePrice;
+
+  @Enumerated(EnumType.STRING)
+  ProductStatus status;
+
+  @ManyToOne
+  @JoinColumn(name = "category_id")
+  Category category;
+
+  @ManyToOne
+  @JoinColumn(name = "brand_id")
+  Brand brand;
+
+  @CreationTimestamp
+  @Column(name = "created_at", updatable = false)
+  LocalDateTime createdAt;
+
+  @UpdateTimestamp
+  @Column(name = "updated_at")
+  LocalDateTime updatedAt;
+}

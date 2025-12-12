@@ -1,0 +1,51 @@
+@startuml
+title Sơ đồ sequence "Thêm sản phẩm vào giỏ hàng"
+
+actor "Người dùng" as User
+participant "Giao diện (UI)" as UI
+participant "Cart Service" as CartService
+participant "Inventory Service" as InventoryService
+database "Database" as DB
+
+activate User
+activate UI
+
+User -> UI: 1. Chọn sản phẩm, thuộc tính (size, màu)
+UI --> User: 2. Hiển thị form chọn số lượng và nút "Thêm vào giỏ"
+User -> UI: 3. Nhập số lượng và nhấn "Thêm vào giỏ"
+
+activate CartService
+UI -> CartService: POST /cart/add (productId, quantity, attributes)
+
+activate InventoryService
+CartService -> InventoryService: 4. GET /inventory/check (productId, quantity)
+InventoryService --> CartService: Trả về tình trạng tồn kho (available, out_of_stock, insufficient)
+deactivate InventoryService
+
+alt Tồn kho đủ (available)
+    activate DB
+    CartService -> DB: 5. Thêm mới hoặc cập nhật số lượng sản phẩm trong giỏ hàng
+    DB --> CartService: Xác nhận cập nhật
+    deactivate DB
+    CartService --> UI: 6. Trả kết quả thành công
+    UI --> User: Hiển thị thông báo: "Sản phẩm đã được thêm vào giỏ hàng"
+
+else Số lượng yêu cầu > tồn kho (insufficient)
+    CartService --> UI: 4.2. Trả lỗi với số lượng tồn kho tối đa
+    UI --> User: Hiển thị cảnh báo: "Số lượng vượt quá tồn kho. Chỉ còn X sản phẩm."
+
+else Hết hàng (out_of_stock)
+    CartService --> UI: 5.3. Trả lỗi "Sản phẩm đã hết hàng"
+    UI --> User: Hiển thị thông báo: "Sản phẩm đã hết hàng!"
+
+else Người dùng chưa đăng nhập (Guest)
+    CartService -> UI: 4.4. Yêu cầu xử lý giỏ hàng tạm
+    UI -> UI: Lưu giỏ hàng vào Local Storage/Session
+    UI --> User: Hiển thị thông báo và tùy chọn đăng nhập để đồng bộ
+end
+
+deactivate CartService
+deactivate UI
+deactivate User
+
+@enduml
