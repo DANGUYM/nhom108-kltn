@@ -23,10 +23,11 @@ spotless {
 	}
 }
 
+// Đã xóa phần toolchain gây lỗi trong Docker
+// Thay vào đó, thiết lập compatibility trực tiếp
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(24)
-	}
+    sourceCompatibility = '21'
+    targetCompatibility = '21'
 }
 
 configurations {

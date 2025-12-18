@@ -2,9 +2,6 @@
   "name": "tailadmin-react",
   "private": true,
   "version": "2.0.2",
-  "engines": {
-    "node": "22.x"
-  },
   "type": "module",
   "scripts": {
     "dev": "vite",
