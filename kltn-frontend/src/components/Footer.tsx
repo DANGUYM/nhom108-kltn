@@ -14,6 +14,8 @@ import {
   FaTshirt,
 } from "react-icons/fa";
 import { MdSecurity } from "react-icons/md";
+import vuvisaLogo from '@/assets/img/small.png';
+
 
 const Footer: React.FC = () => {
   return (
@@ -97,7 +99,8 @@ const Footer: React.FC = () => {
           <div className="md:col-span-4">
             <div className="flex items-center mb-5">
               <img
-                src="./src/assets/img/small.png"
+                // src="./src/assets/img/small.png"
+                src={vuvisaLogo}
                 className="h-10 mr-3"
                 alt="DAVINCI Logo"
               />
